@@ -1,0 +1,8 @@
+<svg width="320" height="180" viewBox="0 0 320 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="320" height="180" fill="#5B21B6" />
+  <rect x="12" y="12" width="296" height="156" fill="#DDD6FE" stroke="#8B5CF6" stroke-width="3" stroke-dasharray="10 10" />
+  <text x="50%" y="50%" text-anchor="middle" fill="#3C0D99" font-family="Arial, sans-serif" font-size="18" font-weight="700">
+    Tambah Banner
+  </text>
+</svg>
+

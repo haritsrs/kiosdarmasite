@@ -1,0 +1,8 @@
+<svg width="360" height="200" viewBox="0 0 360 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="360" height="200" fill="#8B5CF6" />
+  <rect x="10" y="10" width="340" height="180" fill="#EDE9FE" stroke="#A855F7" stroke-width="3" stroke-dasharray="8 8" />
+  <text x="50%" y="52%" text-anchor="middle" fill="#4C1D95" font-family="Arial, sans-serif" font-size="20" font-weight="700">
+    Promo Image Placeholder
+  </text>
+</svg>
+
