@@ -1,21 +1,54 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useAuth } from "~/contexts/AuthContext";
 
 export default function RegisterPage() {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { signUp } = useAuth();
+  const router = useRouter();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      await signUp(email, password, name, "customer");
+      router.push("/");
+    } catch (err: any) {
+      setError(err.message ?? "Gagal mendaftar. Periksa data yang Anda masukkan.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <main className="mx-auto flex max-w-md flex-col gap-6 px-4 py-20">
       <header className="space-y-2 text-center">
         <h1 className="text-3xl font-semibold text-neutral-900">Buat Akun Pembeli</h1>
-        <p className="text-sm text-neutral-600">
-          Registrasi pelanggan akan menambahkan entri ke `/customers/{userId}` bersamaan dengan Firebase Auth.
-        </p>
+        <p className="text-sm text-neutral-600">Daftar sebagai pelanggan untuk mulai belanja di KiosDarma Marketplace.</p>
       </header>
 
-      <form className="space-y-4 rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
         <label className="flex flex-col gap-2 text-sm font-medium text-neutral-700">
           Nama lengkap
           <input
             type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
             placeholder="Nama sesuai identitas"
+            required
             className="rounded-lg border border-neutral-300 px-3 py-2 text-neutral-800 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-200"
           />
         </label>
@@ -23,7 +56,10 @@ export default function RegisterPage() {
           Email
           <input
             type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             placeholder="nama@contoh.com"
+            required
             className="rounded-lg border border-neutral-300 px-3 py-2 text-neutral-800 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-200"
           />
         </label>
@@ -31,11 +67,20 @@ export default function RegisterPage() {
           Kata sandi
           <input
             type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            minLength={6}
             className="rounded-lg border border-neutral-300 px-3 py-2 text-neutral-800 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-200"
           />
+          <span className="text-xs text-neutral-500">Minimal 6 karakter</span>
         </label>
-        <button type="submit" className="w-full rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-purple-700">
-          Daftar
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-purple-700 disabled:opacity-50"
+        >
+          {loading ? "Memproses..." : "Daftar"}
         </button>
       </form>
 
@@ -48,5 +93,3 @@ export default function RegisterPage() {
     </main>
   );
 }
-
-
