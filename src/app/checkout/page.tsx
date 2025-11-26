@@ -6,8 +6,19 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCart } from "~/contexts/CartContext";
 import { useAuth } from "~/contexts/AuthContext";
+import { PaymentDisplay } from "~/components/payments/PaymentDisplay";
 
 const fallbackProductImage = "/img/product-card-default.svg";
+
+interface PaymentData {
+  id: string;
+  referenceId: string;
+  paymentType: "qris" | "va";
+  qrString?: string;
+  accountNumber?: string;
+  bankCode?: string;
+  amount: number;
+}
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -17,6 +28,7 @@ export default function CheckoutPage() {
   const [bankCode, setBankCode] = useState("BCA");
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [paymentData, setPaymentData] = useState<PaymentData | null>(null);
 
   if (cartLoading) {
     return (
@@ -103,21 +115,22 @@ export default function CheckoutPage() {
         throw new Error(errorData.error ?? "Gagal membuat pembayaran");
       }
 
-      const paymentData = await response.json();
+      const responseData = await response.json();
+
+      // Set payment data to display payment instructions
+      setPaymentData({
+        id: responseData.id,
+        referenceId: body.referenceId,
+        paymentType,
+        qrString: responseData.qr_string ?? responseData.qrString,
+        accountNumber: responseData.account_number ?? responseData.accountNumber,
+        bankCode: bankCode,
+        amount: totalPrice,
+      });
 
       // Clear cart after successful payment creation
       clearCart();
-
-      // Redirect to payment page or show payment instructions
-      if (paymentType === "qris" && paymentData.qrString) {
-        // For QRIS, you might want to show a QR code modal or redirect to a payment page
-        router.push(`/orders?paymentId=${paymentData.id}`);
-      } else if (paymentType === "va" && paymentData.accountNumber) {
-        // For VA, show account number and instructions
-        router.push(`/orders?paymentId=${paymentData.id}`);
-      } else {
-        router.push("/orders");
-      }
+      setIsProcessing(false);
     } catch (err: any) {
       setError(err.message ?? "Terjadi kesalahan saat memproses pembayaran");
       setIsProcessing(false);
@@ -139,7 +152,19 @@ export default function CheckoutPage() {
         </div>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
+      {paymentData ? (
+        <div>
+          <PaymentDisplay
+            transactionId={paymentData.referenceId}
+            paymentType={paymentData.paymentType}
+            qrString={paymentData.qrString}
+            accountNumber={paymentData.accountNumber}
+            bankCode={paymentData.bankCode}
+            amount={paymentData.amount}
+          />
+        </div>
+      ) : (
+        <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
         <section className="space-y-6">
           <div className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
             <h2 className="text-xl font-semibold text-neutral-900">Metode Pembayaran</h2>
@@ -248,6 +273,7 @@ export default function CheckoutPage() {
           </button>
         </aside>
       </div>
+      )}
     </main>
   );
 }

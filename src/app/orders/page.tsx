@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { ref, onValue, off } from "firebase/database";
+import { getRealtimeDatabase } from "~/services/firebase/client";
 import { useAuth } from "~/contexts/AuthContext";
 import { getTransactionsByUserId, type Transaction } from "~/services/firebase/transactions";
 import { type TransactionStatus } from "~/models/marketplace";
@@ -41,12 +43,11 @@ export default function OrdersPage() {
       return;
     }
 
+    // Initial load
     const loadTransactions = async () => {
       try {
         setIsLoading(true);
         setError(null);
-        // Note: You may need to adjust getTransactionsByUserId to properly filter by userId
-        // For now, we'll use the user's UID
         const userTransactions = await getTransactionsByUserId(user.uid);
         setTransactions(userTransactions);
       } catch (err: any) {
@@ -57,6 +58,48 @@ export default function OrdersPage() {
     };
 
     loadTransactions();
+
+    // Set up realtime listener for transaction updates
+    const db = getRealtimeDatabase();
+    const userTransactionsRef = ref(db, `transactions/${user.uid}`);
+
+    const unsubscribe = onValue(userTransactionsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const transactionsData = snapshot.val();
+        const updatedTransactions: Transaction[] = [];
+
+        for (const [id, data] of Object.entries(transactionsData as Record<string, any>)) {
+          const transaction: Transaction = {
+            id,
+            type: data.type ?? "online",
+            paymentType: data.paymentType,
+            paymentId: data.paymentId,
+            amount: data.amount ?? 0,
+            status: data.status ?? "pending",
+            userId: data.userId ?? user.uid,
+            customer: data.customer,
+            description: data.description,
+            items: data.items,
+            createdAt: data.createdAt ?? Date.now(),
+            updatedAt: data.updatedAt,
+            qrString: data.qrString,
+            accountNumber: data.accountNumber,
+            bankCode: data.bankCode,
+          };
+          updatedTransactions.push(transaction);
+        }
+
+        // Sort by createdAt descending (newest first)
+        updatedTransactions.sort((a, b) => b.createdAt - a.createdAt);
+        setTransactions(updatedTransactions);
+      } else {
+        setTransactions([]);
+      }
+    });
+
+    return () => {
+      off(userTransactionsRef, "value", unsubscribe);
+    };
   }, [user, authLoading]);
 
   if (authLoading || isLoading) {

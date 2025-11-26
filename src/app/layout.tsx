@@ -6,6 +6,8 @@ import { Geist } from "next/font/google";
 import { TRPCReactProvider } from "~/trpc/react";
 import { AuthProvider } from "~/contexts/AuthContext";
 import { CartProvider } from "~/contexts/CartContext";
+import { Header } from "~/components/layout/Header";
+import { Footer } from "~/components/layout/Footer";
 
 export const metadata: Metadata = {
   title: "KiosDarma Marketplace",
@@ -26,7 +28,11 @@ export default function RootLayout({
       <body className="bg-neutral-50 text-neutral-900 antialiased">
         <TRPCReactProvider>
           <AuthProvider>
-            <CartProvider>{children}</CartProvider>
+            <CartProvider>
+              <Header />
+              {children}
+              <Footer />
+            </CartProvider>
           </AuthProvider>
         </TRPCReactProvider>
       </body>

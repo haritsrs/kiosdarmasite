@@ -31,11 +31,10 @@ export interface Transaction {
 
 export async function getTransactionsByUserId(userId: string): Promise<Transaction[]> {
   const db = getRealtimeDatabase();
-  const transactionsRef = ref(db, "transactions");
+  // Use optimized user-specific transaction index
+  const userTransactionsRef = ref(db, `transactions/${userId}`);
   
-  // Fetch all transactions and filter by userId
-  // In a production app, you might want to maintain an index like transactions/{userId}/{transactionId}
-  const snapshot = await get(transactionsRef);
+  const snapshot = await get(userTransactionsRef);
   
   if (!snapshot.exists()) {
     return [];
@@ -45,17 +44,6 @@ export async function getTransactionsByUserId(userId: string): Promise<Transacti
   const transactions: Transaction[] = [];
 
   for (const [id, data] of Object.entries(transactionsData as Record<string, any>)) {
-    // Filter by userId if it exists in the transaction data
-    if (data.userId && data.userId !== userId) {
-      continue;
-    }
-
-    // Also check customer email as fallback
-    if (!data.userId && data.customer?.email) {
-      // You might want to fetch user email from Firebase Auth to match
-      // For now, we'll include transactions without userId filtering
-    }
-
     const transaction: Transaction = {
       id,
       type: data.type ?? "online",
@@ -63,6 +51,7 @@ export async function getTransactionsByUserId(userId: string): Promise<Transacti
       paymentId: data.paymentId,
       amount: data.amount ?? 0,
       status: data.status ?? "pending",
+      userId: data.userId ?? userId,
       customer: data.customer,
       description: data.description,
       items: data.items,

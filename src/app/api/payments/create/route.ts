@@ -67,6 +67,12 @@ export async function POST(request: NextRequest) {
 
     await set(transactionRef, transactionData);
 
+    // Also create user-specific transaction index for efficient querying
+    if (userId) {
+      const userTransactionRef = ref(db, `transactions/${userId}/${referenceId}`);
+      await set(userTransactionRef, transactionData);
+    }
+
     return NextResponse.json(paymentResponse);
   } catch (error: any) {
     console.error("Payment creation error:", error);
