@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { type ProductSummary } from "~/models/marketplace";
+import { AddToCartButton } from "~/components/pages/AddToCartButton";
 
 type ProductShowcaseProps = {
   products: ProductSummary[];
@@ -10,6 +11,14 @@ type ProductShowcaseProps = {
 const fallbackProductImage = "/img/product-card-default.svg";
 
 export function ProductShowcase({ products }: ProductShowcaseProps) {
+  if (products.length === 0) {
+    return (
+      <div className="rounded-lg border border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-500">
+        Belum ada produk yang tersedia.
+      </div>
+    );
+  }
+
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {products.map((product) => (
@@ -61,9 +70,11 @@ export function ProductShowcase({ products }: ProductShowcaseProps) {
             ) : null}
           </div>
 
-          <footer className="mt-auto flex items-center justify-between border-t border-slate-200 pt-3 text-xs font-semibold uppercase tracking-[0.25em] text-slate-600">
-            <span>Tambah ke keranjang</span>
-            <span className="text-purple-600">+</span>
+          <footer className="mt-auto border-t border-slate-200 pt-3">
+            <AddToCartButton
+              product={product}
+              className="w-full rounded-lg bg-purple-600 px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-white transition hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
+            />
           </footer>
         </article>
       ))}

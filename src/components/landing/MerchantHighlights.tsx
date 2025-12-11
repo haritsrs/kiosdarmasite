@@ -10,6 +10,14 @@ type MerchantHighlightsProps = {
 const fallbackMerchantImage = "/img/merchant-card-default.svg";
 
 export function MerchantHighlights({ merchants }: MerchantHighlightsProps) {
+  if (merchants.length === 0) {
+    return (
+      <div className="rounded-lg border border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-500">
+        Belum ada merchant yang terdaftar.
+      </div>
+    );
+  }
+
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {merchants.map((merchant) => (

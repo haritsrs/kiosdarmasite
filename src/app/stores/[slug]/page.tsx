@@ -1,30 +1,88 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { useParams } from "next/navigation";
 
-import { MerchantHighlights } from "~/components/landing/MerchantHighlights";
 import { ProductShowcase } from "~/components/landing/ProductShowcase";
-import { getMerchantBySlug, getMerchants } from "~/services/firebase/merchants";
+import { getMerchantBySlug, getAllUsers } from "~/services/firebase/merchants";
 import { getProductsByMerchant } from "~/services/firebase/products";
-
-type StorePageProps = {
-  params: Promise<{ slug: string }>;
-};
+import { type MerchantProfile } from "~/models/marketplace";
+import { type ProductSummary } from "~/models/marketplace";
 
 const fallbackMerchantImage = "/img/merchant-card-default.svg";
 
-export default async function StorePage({ params }: StorePageProps) {
-  const { slug } = await params;
-  const merchant = await getMerchantBySlug(slug);
+export default function StorePage() {
+  const params = useParams();
+  const slug = params?.slug as string;
+  
+  const [merchant, setMerchant] = useState<MerchantProfile | null>(null);
+  const [products, setProducts] = useState<ProductSummary[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  if (!merchant) {
-    notFound();
+  useEffect(() => {
+    const loadStoreData = async () => {
+      if (!slug) return;
+      
+      try {
+        setIsLoading(true);
+        setError(null);
+        
+        console.log("[StorePage] Loading store for slug:", slug);
+        
+        // Get merchant by slug
+        const merchantData = await getMerchantBySlug(slug);
+        console.log("[StorePage] Found merchant:", merchantData);
+        
+        if (!merchantData) {
+          setError("Merchant tidak ditemukan");
+          setIsLoading(false);
+          return;
+        }
+        
+        setMerchant(merchantData);
+        
+        // Get products for this merchant
+        const productsData = await getProductsByMerchant(merchantData.id);
+        console.log("[StorePage] Found products:", productsData.length);
+        setProducts(productsData);
+        
+      } catch (err: any) {
+        console.error("[StorePage] Error loading store:", err);
+        setError(err.message ?? "Gagal memuat data toko.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadStoreData();
+  }, [slug]);
+
+  if (isLoading) {
+    return (
+      <main className="mx-auto flex max-w-6xl flex-col gap-10 px-4 py-16">
+        <div className="rounded-2xl border border-neutral-200 bg-white p-6 text-center text-neutral-500 shadow-sm">
+          <p>Memuat data toko...</p>
+        </div>
+      </main>
+    );
   }
 
-  const [products, otherMerchants] = await Promise.all([
-    getProductsByMerchant(merchant.id),
-    getMerchants(6).then((merchants) => merchants.filter((m) => m.id !== merchant.id)),
-  ]);
+  if (error || !merchant) {
+    return (
+      <main className="mx-auto flex max-w-6xl flex-col gap-10 px-4 py-16">
+        <Link href="/stores" className="text-sm font-semibold text-purple-600 transition hover:text-purple-700">
+          ← Semua toko
+        </Link>
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center text-red-600 shadow-sm">
+          <p className="font-semibold">Error</p>
+          <p className="text-sm">{error ?? "Toko tidak ditemukan"}</p>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="mx-auto flex max-w-6xl flex-col gap-10 px-4 py-16">
@@ -74,17 +132,6 @@ export default async function StorePage({ params }: StorePageProps) {
           </div>
         )}
       </section>
-
-      {otherMerchants.length > 0 && (
-        <section>
-          <h2 className="text-lg font-semibold text-neutral-900">Merchant lain yang mungkin Anda suka</h2>
-          <div className="mt-6">
-            <MerchantHighlights merchants={otherMerchants.slice(0, 3)} />
-          </div>
-        </section>
-      )}
     </main>
   );
 }
-
-

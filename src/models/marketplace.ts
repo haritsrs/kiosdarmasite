@@ -1,6 +1,6 @@
 export type UserRole = "customer" | "merchant" | "admin";
 
-export type TransactionStatus = "pending" | "paid" | "processing" | "shipped" | "completed" | "cancelled";
+export type TransactionStatus = "pending" | "completed" | "cancelled";
 
 export interface Category {
   id: string;
@@ -28,6 +28,7 @@ export interface MerchantProfile {
   productCount?: number;
   avatarUrl?: string;
   isVerified?: boolean;
+  phoneNumber?: string;
 }
 
 export interface ProductSummary {

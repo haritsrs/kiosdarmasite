@@ -1,0 +1,661 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    
+    // Public marketplace products - readable by all (including unauthenticated), writable by merchants
+    "products": {
+      ".read": true,
+      ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'merchant' || root.child('users').child(auth.uid).child('role').val() == 'admin')",
+      "$productId": {
+        "name": {
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 120"
+        },
+        "description": {
+          ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 500)"
+        },
+        "price": {
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        "currency": {
+          ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 10)"
+        },
+        "stock": {
+          ".validate": "!newData.exists() || (newData.isNumber() && newData.val() >= 0)"
+        },
+        "categoryId": {
+          ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 50)"
+        },
+        "merchantId": {
+          ".validate": "newData.isString() && newData.val() == auth.uid"
+        },
+        "merchantName": {
+          ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 100)"
+        },
+        "imageUrl": {
+          ".validate": "!newData.exists() || newData.isString()"
+        },
+        "rating": {
+          ".validate": "!newData.exists() || (newData.isNumber() && newData.val() >= 0 && newData.val() <= 5)"
+        },
+        "soldCount": {
+          ".validate": "!newData.exists() || (newData.isNumber() && newData.val() >= 0)"
+        },
+        "createdAt": {
+          ".validate": "!newData.exists() || (newData.isString() || newData.isNumber())"
+        },
+        "updatedAt": {
+          ".validate": "!newData.exists() || (newData.isString() || newData.isNumber())"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+    
+    // Public notifications/promos - readable by all (including unauthenticated)
+    "notifications": {
+      ".read": true,
+      ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'merchant' || root.child('users').child(auth.uid).child('role').val() == 'admin')",
+      "$notificationId": {
+        "id": {
+          ".validate": "newData.isString()"
+        },
+        "type": {
+          ".validate": "newData.isString() && (newData.val() == 'promo' || newData.val() == 'banner' || newData.val() == 'order')"
+        },
+        "title": {
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
+        },
+        "description": {
+          ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 500)"
+        },
+        "target": {
+          ".validate": "!newData.exists() || (newData.isString() && (newData.val() == 'customer' || newData.val() == 'merchant' || newData.val() == 'all'))"
+        },
+        "bannerUrl": {
+          ".validate": "!newData.exists() || newData.isString()"
+        },
+        "deeplink": {
+          ".validate": "!newData.exists() || newData.isString()"
+        },
+        "expiresAt": {
+          ".validate": "!newData.exists() || (newData.isNumber() || newData.isString())"
+        },
+        "createdAt": {
+          ".validate": "!newData.exists() || (newData.isNumber() || newData.isString())"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+    
+    // Marketplace transactions - support both flat (/transactions/$transactionId) and nested (/transactions/$userId/$transactionId) structures
+    "transactions": {
+      "$path": {
+        // Handle both flat transactions and nested user transactions
+        // Flat: /transactions/$transactionId - readable if userId matches
+        // Nested: /transactions/$userId - readable if $path == auth.uid
+        ".read": "auth != null && ($path == auth.uid || data.child('userId').val() == auth.uid)",
+        ".write": "auth != null && ($path == auth.uid || data.child('userId').val() == auth.uid || newData.child('userId').val() == auth.uid || !data.exists())",
+        "$transactionId": {
+          ".read": "auth != null && ($path == auth.uid)",
+          ".write": "auth != null && ($path == auth.uid || newData.child('userId').val() == auth.uid)",
+          "id": {
+            ".validate": "newData.isString()"
+          },
+          "type": {
+            ".validate": "newData.isString() && (newData.val() == 'online' || newData.val() == 'offline')"
+          },
+          "paymentType": {
+            ".validate": "!newData.exists() || (newData.isString() && (newData.val() == 'qris' || newData.val() == 'va'))"
+          },
+          "paymentId": {
+            ".validate": "!newData.exists() || newData.isString()"
+          },
+          "amount": {
+            ".validate": "newData.isNumber() && newData.val() >= 0"
+          },
+          "status": {
+            ".validate": "newData.isString() && (newData.val() == 'pending' || newData.val() == 'paid' || newData.val() == 'processing' || newData.val() == 'shipped' || newData.val() == 'completed' || newData.val() == 'cancelled')"
+          },
+          "userId": {
+            ".validate": "!newData.exists() || newData.isString()"
+          },
+          "customer": {
+            ".validate": "!newData.exists() || newData.hasChildren()"
+          },
+          "description": {
+            ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 500)"
+          },
+          "items": {
+            ".validate": "!newData.exists() || newData.hasChildren()"
+          },
+          "qrString": {
+            ".validate": "!newData.exists() || newData.isString()"
+          },
+          "accountNumber": {
+            ".validate": "!newData.exists() || newData.isString()"
+          },
+          "bankCode": {
+            ".validate": "!newData.exists() || newData.isString()"
+          },
+          "createdAt": {
+            ".validate": "newData.isNumber() || newData.isString()"
+          },
+          "updatedAt": {
+            ".validate": "!newData.exists() || (newData.isNumber() || newData.isString())"
+          },
+          "$other": {
+            ".validate": false
+          }
+        },
+        // Validation for flat transaction structure (when $path is a transactionId, not userId)
+        "id": {
+          ".validate": "!newData.exists() || newData.isString()"
+        },
+        "type": {
+          ".validate": "!newData.exists() || (newData.isString() && (newData.val() == 'online' || newData.val() == 'offline'))"
+        },
+        "paymentType": {
+          ".validate": "!newData.exists() || (newData.isString() && (newData.val() == 'qris' || newData.val() == 'va'))"
+        },
+        "paymentId": {
+          ".validate": "!newData.exists() || newData.isString()"
+        },
+        "amount": {
+          ".validate": "!newData.exists() || (newData.isNumber() && newData.val() >= 0)"
+        },
+        "status": {
+          ".validate": "!newData.exists() || (newData.isString() && (newData.val() == 'pending' || newData.val() == 'paid' || newData.val() == 'processing' || newData.val() == 'shipped' || newData.val() == 'completed' || newData.val() == 'cancelled'))"
+        },
+        "userId": {
+          ".validate": "!newData.exists() || newData.isString()"
+        },
+        "customer": {
+          ".validate": "!newData.exists() || newData.hasChildren()"
+        },
+        "description": {
+          ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 500)"
+        },
+        "items": {
+          ".validate": "!newData.exists() || newData.hasChildren()"
+        },
+        "qrString": {
+          ".validate": "!newData.exists() || newData.isString()"
+        },
+        "accountNumber": {
+          ".validate": "!newData.exists() || newData.isString()"
+        },
+        "bankCode": {
+          ".validate": "!newData.exists() || newData.isString()"
+        },
+        "createdAt": {
+          ".validate": "!newData.exists() || (newData.isNumber() || newData.isString())"
+        },
+        "updatedAt": {
+          ".validate": "!newData.exists() || (newData.isNumber() || newData.isString())"
+        }
+      }
+    },
+    
+    // User carts - private to each user
+    "carts": {
+      "$userId": {
+        ".read": "auth != null && auth.uid == $userId",
+        ".write": "auth != null && auth.uid == $userId"
+      }
+    },
+    
+    // Marketplace Orders - WhatsApp-based ordering system (separate from POS orders)
+    "marketplaceOrders": {
+      "$userId": {
+        ".read": "auth != null && auth.uid == $userId",
+        ".write": "auth != null && auth.uid == $userId",
+        "$orderId": {
+          ".read": "auth != null && auth.uid == $userId",
+          ".write": "auth != null && auth.uid == $userId",
+          "id": {
+            ".validate": "newData.isString()"
+          },
+          "userId": {
+            ".validate": "newData.isString() && newData.val() == auth.uid"
+          },
+          "items": {
+            ".validate": "newData.hasChildren()"
+          },
+          "subtotal": {
+            ".validate": "newData.isNumber() && newData.val() >= 0"
+          },
+          "total": {
+            ".validate": "newData.isNumber() && newData.val() >= 0"
+          },
+          "status": {
+            ".validate": "newData.isString() && (newData.val() == 'pending' || newData.val() == 'completed' || newData.val() == 'cancelled')"
+          },
+          "userConfirmed": {
+            ".validate": "newData.isBoolean()"
+          },
+          "merchantConfirmed": {
+            ".validate": "newData.isBoolean()"
+          },
+          "whatsappMessage": {
+            ".validate": "!newData.exists() || newData.isString()"
+          },
+          "createdAt": {
+            ".validate": "newData.isNumber()"
+          },
+          "updatedAt": {
+            ".validate": "newData.isNumber()"
+          },
+          "completedAt": {
+            ".validate": "!newData.exists() || newData.isNumber()"
+          },
+          "cancelledAt": {
+            ".validate": "!newData.exists() || newData.isNumber()"
+          },
+          "cancelledBy": {
+            ".validate": "!newData.exists() || newData.isString()"
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      }
+    },
+    
+    // User data - includes merchant profiles (public readable) and private POS data
+    "users": {
+      // Allow reading users list for all (including unauthenticated) to find merchants
+      // Note: Individual user private data is still protected by child rules
+      ".read": true,
+      "$userId": {
+        // Allow reading individual user's public data (role, profile) - readable by all
+        // Private data (products, transactions, etc.) is protected by child rules
+        ".read": true,
+        ".write": "auth != null && auth.uid == $userId",
+        
+        // Public merchant profile - readable by all (including unauthenticated)
+        "profile": {
+          ".read": true,
+          ".write": "auth != null && auth.uid == $userId && (root.child('users').child(auth.uid).child('role').val() == 'merchant' || root.child('users').child(auth.uid).child('role').val() == 'admin')",
+          "name": {
+            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
+          },
+          "slug": {
+            ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 100)"
+          },
+          "location": {
+            ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 200)"
+          },
+          "rating": {
+            ".validate": "!newData.exists() || (newData.isNumber() && newData.val() >= 0 && newData.val() <= 5)"
+          },
+          "productCount": {
+            ".validate": "!newData.exists() || (newData.isNumber() && newData.val() >= 0)"
+          },
+          "avatarUrl": {
+            ".validate": "!newData.exists() || newData.isString()"
+          },
+          "isVerified": {
+            ".validate": "!newData.exists() || newData.isBoolean()"
+          },
+          "phoneNumber": {
+            ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 20)"
+          },
+          "$other": {
+            ".validate": false
+          }
+        },
+        
+        // User role - readable by all (including unauthenticated) for checking merchant status
+        "role": {
+          ".read": true,
+          ".write": "auth != null && auth.uid == $userId && (!data.exists() || root.child('users').child(auth.uid).child('role').val() == 'admin')",
+          ".validate": "newData.isString() && (newData.val() == 'customer' || newData.val() == 'merchant' || newData.val() == 'admin')"
+        },
+        
+        // User notification read status - private
+        "notificationsRead": {
+          ".read": "auth != null && auth.uid == $userId",
+          ".write": "auth != null && auth.uid == $userId",
+          "$notificationId": {
+            ".validate": "newData.isBoolean()"
+          }
+        },
+        
+        // POS Products - private to merchant
+        "products": {
+          ".read": "auth != null && auth.uid == $userId",
+          ".write": "auth != null && auth.uid == $userId && ((!data.exists() && newData.child('createdBy').val() == auth.uid) || (data.exists() && data.child('createdBy').val() == auth.uid))",
+          "$productId": {
+            "name": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 120"
+            },
+            "description": {
+              ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 500)"
+            },
+            "price": {
+              ".validate": "newData.isNumber() && newData.val() >= 0"
+            },
+            "stock": {
+              ".validate": "newData.isNumber() && newData.val() >= 0"
+            },
+            "minStock": {
+              ".validate": "newData.isNumber() && newData.val() >= 0"
+            },
+            "supplier": {
+              ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 100)"
+            },
+            "category": {
+              ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 50)"
+            },
+            "barcode": {
+              ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 50)"
+            },
+            "image": {
+              ".validate": "!newData.exists() || newData.isString()"
+            },
+            "imageUrl": {
+              ".validate": "!newData.exists() || newData.isString()"
+            },
+            "createdAt": {
+              ".validate": "newData.isString()"
+            },
+            "updatedAt": {
+              ".validate": "newData.isString()"
+            },
+            "createdBy": {
+              ".validate": "newData.isString() && newData.val() == auth.uid"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        },
+        
+        // POS Stock History - private to merchant
+        "stockHistory": {
+          ".read": "auth != null && auth.uid == $userId",
+          ".write": "auth != null && auth.uid == $userId",
+          "$productId": {
+            "$historyId": {
+              "productId": {
+                ".validate": "newData.isString()"
+              },
+              "productName": {
+                ".validate": "newData.isString() && newData.val().length <= 120"
+              },
+              "oldStock": {
+                ".validate": "newData.isNumber() && newData.val() >= 0"
+              },
+              "newStock": {
+                ".validate": "newData.isNumber() && newData.val() >= 0"
+              },
+              "difference": {
+                ".validate": "newData.isNumber()"
+              },
+              "reason": {
+                ".validate": "newData.isString() && newData.val().length <= 100"
+              },
+              "notes": {
+                ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 200)"
+              },
+              "createdAt": {
+                ".validate": "newData.isString()"
+              },
+              "createdBy": {
+                ".validate": "newData.isString() && newData.val() == auth.uid"
+              },
+              "$other": {
+                ".validate": false
+              }
+            }
+          }
+        },
+        
+        // POS Transactions - private to merchant
+        "transactions": {
+          ".read": "auth != null && auth.uid == $userId",
+          ".write": "auth != null && auth.uid == $userId && newData.child('createdBy').val() == auth.uid",
+          "$transactionId": {
+            "id": {
+              ".validate": "newData.isString()"
+            },
+            "items": {
+              "$itemId": {
+                "productId": {
+                  ".validate": "newData.isString()"
+                },
+                "productName": {
+                  ".validate": "newData.isString() && newData.val().length <= 120"
+                },
+                "quantity": {
+                  ".validate": "newData.isNumber() && newData.val() > 0"
+                },
+                "price": {
+                  ".validate": "newData.isNumber() && newData.val() >= 0"
+                },
+                "subtotal": {
+                  ".validate": "newData.isNumber() && newData.val() >= 0"
+                },
+                "$other": {
+                  ".validate": false
+                }
+              }
+            },
+            "subtotal": {
+              ".validate": "newData.isNumber() && newData.val() >= 0"
+            },
+            "tax": {
+              ".validate": "newData.isNumber() && newData.val() >= 0"
+            },
+            "total": {
+              ".validate": "newData.isNumber() && newData.val() >= 0"
+            },
+            "discount": {
+              ".validate": "!newData.exists() || (newData.isNumber() && newData.val() >= 0)"
+            },
+            "paymentMethod": {
+              ".validate": "newData.isString() && newData.val().length <= 50"
+            },
+            "cashAmount": {
+              ".validate": "!newData.exists() || (newData.isNumber() && newData.val() >= 0)"
+            },
+            "change": {
+              ".validate": "!newData.exists() || (newData.isNumber() && newData.val() >= 0)"
+            },
+            "customerId": {
+              ".validate": "!newData.exists() || newData.isString()"
+            },
+            "customerName": {
+              ".validate": "!newData.exists() || newData.isString()"
+            },
+            "customerNameEncrypted": {
+              ".validate": "!newData.exists() || newData.isBoolean()"
+            },
+            "status": {
+              ".validate": "newData.isString() && (newData.val() == 'Selesai' || newData.val() == 'Dibatalkan')"
+            },
+            "createdAt": {
+              ".validate": "newData.isString()"
+            },
+            "cancelledAt": {
+              ".validate": "!newData.exists() || newData.isString()"
+            },
+            "cancelledBy": {
+              ".validate": "!newData.exists() || (newData.isString() && newData.val() == auth.uid)"
+            },
+            "updatedAt": {
+              ".validate": "!newData.exists() || newData.isString()"
+            },
+            "createdBy": {
+              ".validate": "newData.isString() && newData.val() == auth.uid"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        },
+        
+        // POS Customers - private to merchant
+        "customers": {
+          ".read": "auth != null && auth.uid == $userId",
+          ".write": "auth != null && auth.uid == $userId && ((!data.exists() && newData.child('createdBy').val() == auth.uid) || (data.exists() && data.child('createdBy').val() == auth.uid))",
+          "$customerId": {
+            "id": {
+              ".validate": "newData.isString()"
+            },
+            "name": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
+            },
+            "phone": {
+              ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 20)"
+            },
+            "email": {
+              ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 100)"
+            },
+            "address": {
+              ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 200)"
+            },
+            "transactionCount": {
+              ".validate": "newData.isNumber() && newData.val() >= 0"
+            },
+            "totalSpent": {
+              ".validate": "newData.isNumber() && newData.val() >= 0"
+            },
+            "notes": {
+              ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 500)"
+            },
+            "createdAt": {
+              ".validate": "newData.isString()"
+            },
+            "lastTransaction": {
+              ".validate": "newData.isString()"
+            },
+            "updatedAt": {
+              ".validate": "!newData.exists() || newData.isString()"
+            },
+            "createdBy": {
+              ".validate": "newData.isString() && newData.val() == auth.uid"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        },
+        
+        // User notifications - private
+        "notifications": {
+          ".read": "auth != null && auth.uid == $userId",
+          ".write": "auth != null && auth.uid == $userId",
+          "$notificationId": {
+            "id": {
+              ".validate": "newData.isString()"
+            },
+            "title": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
+            },
+            "message": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 500"
+            },
+            "type": {
+              ".validate": "newData.isString() && newData.val().length <= 50"
+            },
+            "isRead": {
+              ".validate": "newData.isBoolean()"
+            },
+            "createdAt": {
+              ".validate": "newData.isString()"
+            },
+            "data": {
+              ".validate": "!newData.exists() || newData.hasChildren()"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        },
+        
+        // POS Audit Logs - private to merchant
+        "auditLogs": {
+          ".read": "auth != null && auth.uid == $userId",
+          ".write": "auth != null && auth.uid == $userId && newData.child('userId').val() == auth.uid",
+          "$logId": {
+            "action": {
+              ".validate": "newData.isString() && newData.val().length <= 50"
+            },
+            "details": {
+              ".validate": "newData.hasChildren()"
+            },
+            "timestamp": {
+              ".validate": "newData.isString()"
+            },
+            "userId": {
+              ".validate": "newData.isString() && newData.val() == auth.uid"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        },
+        
+        // POS Withdrawals - private to merchant
+        "withdrawals": {
+          ".read": "auth != null && auth.uid == $userId",
+          ".write": "auth != null && auth.uid == $userId",
+          "$withdrawalId": {
+            "id": {
+              ".validate": "newData.isString()"
+            },
+            "amount": {
+              ".validate": "newData.isNumber() && newData.val() > 0"
+            },
+            "bankName": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
+            },
+            "accountNumber": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 50"
+            },
+            "accountHolderName": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
+            },
+            "status": {
+              ".validate": "newData.isString() && (newData.val() == 'pending' || newData.val() == 'processing' || newData.val() == 'completed' || newData.val() == 'rejected')"
+            },
+            "notes": {
+              ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 500)"
+            },
+            "createdAt": {
+              ".validate": "newData.isString()"
+            },
+            "updatedAt": {
+              ".validate": "!newData.exists() || newData.isString()"
+            },
+            "createdBy": {
+              ".validate": "newData.isString() && newData.val() == auth.uid"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        },
+        
+        // POS Settings - private to merchant
+        "settings": {
+          ".read": "auth != null && auth.uid == $userId",
+          ".write": "auth != null && auth.uid == $userId",
+          "$settingKey": {
+            ".validate": "newData.isString() || newData.isNumber() || newData.isBoolean()"
+          }
+        },
+        
+        "$other": {
+          ".validate": false
+        }
+      }
+    }
+  }
+}
+

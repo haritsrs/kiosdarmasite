@@ -1,34 +1,90 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { useCart } from "~/contexts/CartContext";
 import { useAuth } from "~/contexts/AuthContext";
-import { PaymentDisplay } from "~/components/payments/PaymentDisplay";
+import { createOrder } from "~/services/firebase/orders";
+import { getMerchantById } from "~/services/firebase/merchants";
 
 const fallbackProductImage = "/img/product-card-default.svg";
 
-interface PaymentData {
-  id: string;
-  referenceId: string;
-  paymentType: "qris" | "va";
-  qrString?: string;
-  accountNumber?: string;
-  bankCode?: string;
-  amount: number;
+interface OrderGroup {
+  merchantId: string;
+  merchantName: string;
+  merchantPhone?: string;
+  items: Array<{
+    product: {
+      id: string;
+      name: string;
+      price: number;
+      imageUrl?: string;
+    };
+    quantity: number;
+  }>;
+  subtotal: number;
 }
 
 export default function CheckoutPage() {
   const router = useRouter();
   const { user } = useAuth();
   const { items, totalPrice, clearCart, isLoading: cartLoading } = useCart();
-  const [paymentType, setPaymentType] = useState<"qris" | "va">("qris");
-  const [bankCode, setBankCode] = useState("BCA");
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [paymentData, setPaymentData] = useState<PaymentData | null>(null);
+  const [orderCreated, setOrderCreated] = useState(false);
+  const [orderId, setOrderId] = useState<string | null>(null);
+  const [merchantPhones, setMerchantPhones] = useState<Record<string, string>>({});
+
+  // Group items by merchant
+  const orderGroups = useMemo(() => {
+    const groups: Record<string, OrderGroup> = {};
+
+    for (const item of items) {
+      const merchantId = item.product.merchantId;
+      if (!groups[merchantId]) {
+        groups[merchantId] = {
+          merchantId,
+          merchantName: item.product.merchantName,
+          merchantPhone: merchantPhones[merchantId],
+          items: [],
+          subtotal: 0,
+        };
+      }
+
+      groups[merchantId]!.items.push(item);
+      groups[merchantId]!.subtotal += item.product.price * item.quantity;
+    }
+
+    return Object.values(groups);
+  }, [items, merchantPhones]);
+
+  // Load merchant phone numbers
+  useMemo(() => {
+    const loadMerchantPhones = async () => {
+      const phones: Record<string, string> = {};
+      for (const group of orderGroups) {
+        if (!group.merchantPhone) {
+          try {
+            const merchant = await getMerchantById(group.merchantId);
+            if (merchant?.phoneNumber) {
+              phones[group.merchantId] = merchant.phoneNumber;
+            }
+          } catch (error) {
+            console.error(`Failed to load merchant ${group.merchantId}:`, error);
+          }
+        }
+      }
+      if (Object.keys(phones).length > 0) {
+        setMerchantPhones((prev) => ({ ...prev, ...phones }));
+      }
+    };
+
+    if (orderGroups.length > 0) {
+      loadMerchantPhones();
+    }
+  }, [orderGroups]);
 
   if (cartLoading) {
     return (
@@ -66,7 +122,7 @@ export default function CheckoutPage() {
           <h1 className="text-3xl font-semibold text-neutral-900">Checkout</h1>
         </header>
         <div className="rounded-2xl border border-neutral-200 bg-white p-12 text-center shadow-sm">
-          <p className="text-neutral-500 mb-4">Anda harus login untuk melanjutkan checkout.</p>
+          <p className="mb-4 text-neutral-500">Anda harus login untuk melanjutkan checkout.</p>
           <Link
             href="/auth/login"
             className="inline-block rounded-lg bg-purple-600 px-6 py-3 font-semibold text-white transition hover:bg-purple-700"
@@ -78,64 +134,110 @@ export default function CheckoutPage() {
     );
   }
 
+  const generateWhatsAppMessage = (group: OrderGroup): string => {
+    const customerName = user.displayName ?? user.email?.split("@")[0] ?? "Pelanggan";
+    let message = `Halo ${group.merchantName}! 👋\n\n`;
+    message += `Saya ingin memesan:\n\n`;
+
+    for (const item of group.items) {
+      message += `• ${item.product.name}\n`;
+      message += `  Jumlah: ${item.quantity}\n`;
+      message += `  Harga: Rp ${item.product.price.toLocaleString("id-ID")}\n`;
+      message += `  Subtotal: Rp ${(item.product.price * item.quantity).toLocaleString("id-ID")}\n\n`;
+    }
+
+    message += `Total: Rp ${group.subtotal.toLocaleString("id-ID")}\n\n`;
+    message += `Nama: ${customerName}\n`;
+    if (user.email) {
+      message += `Email: ${user.email}\n`;
+    }
+    message += `\nMohon konfirmasi ketersediaan dan detail pengiriman. Terima kasih! 🙏`;
+
+    return message;
+  };
+
   const handleCheckout = async () => {
     setIsProcessing(true);
     setError(null);
 
     try {
-      const referenceId = `order_${Date.now()}_${user.uid}`;
+      // For now, we'll create one order per merchant group
+      // In the future, you might want to create separate orders for each merchant
+      const firstGroup = orderGroups[0]!;
       
-      const response = await fetch("/api/payments/create", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          type: paymentType,
-          amount: totalPrice,
-          referenceId,
-          userId: user.uid,
-          bankCode: paymentType === "va" ? bankCode : undefined,
-          customer: {
-            givenNames: user.displayName ?? user.email?.split("@")[0] ?? "Customer",
-            email: user.email ?? "",
-          },
-          description: `Pembayaran untuk ${items.length} item dari KiosDarma`,
-          items: items.map((item) => ({
-            productId: item.product.id,
-            productName: item.product.name,
-            quantity: item.quantity,
-            price: item.product.price,
-          })),
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error ?? "Gagal membuat pembayaran");
+      if (!firstGroup.merchantPhone) {
+        throw new Error(`Nomor WhatsApp merchant ${firstGroup.merchantName} belum tersedia. Silakan hubungi merchant terlebih dahulu.`);
       }
 
-      const responseData = await response.json();
+      const orderItems = firstGroup.items.map((item) => ({
+        productId: item.product.id,
+        productName: item.product.name,
+        quantity: item.quantity,
+        price: item.product.price,
+        subtotal: item.product.price * item.quantity,
+      }));
 
-      // Set payment data to display payment instructions
-      setPaymentData({
-        id: responseData.id,
-        referenceId: body.referenceId,
-        paymentType,
-        qrString: responseData.qr_string ?? responseData.qrString,
-        accountNumber: responseData.account_number ?? responseData.accountNumber,
-        bankCode: bankCode,
-        amount: totalPrice,
-      });
+      const whatsappMessage = generateWhatsAppMessage(firstGroup);
 
-      // Clear cart after successful payment creation
+      // Create order in Firebase
+      const newOrderId = await createOrder(
+        user.uid,
+        orderItems,
+        whatsappMessage
+      );
+
+      setOrderId(newOrderId);
+
+      // Open WhatsApp with the message
+      const phoneNumber = firstGroup.merchantPhone.replace(/[^0-9]/g, "");
+      const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(whatsappMessage)}`;
+      window.open(whatsappUrl, "_blank");
+
+      // Clear cart
       clearCart();
+      setOrderCreated(true);
       setIsProcessing(false);
+
+      // Redirect to orders page after 3 seconds
+      setTimeout(() => {
+        router.push("/orders");
+      }, 3000);
     } catch (err: any) {
-      setError(err.message ?? "Terjadi kesalahan saat memproses pembayaran");
+      setError(err.message ?? "Terjadi kesalahan saat membuat pesanan");
       setIsProcessing(false);
     }
   };
+
+  if (orderCreated) {
+    return (
+      <main className="mx-auto flex max-w-4xl flex-col gap-6 px-4 py-16">
+        <div className="rounded-2xl border border-green-200 bg-green-50 p-8 text-center shadow-sm">
+          <div className="mb-4 text-4xl">✅</div>
+          <h2 className="mb-2 text-2xl font-semibold text-green-900">Pesanan Berhasil Dibuat!</h2>
+          <p className="mb-4 text-green-700">
+            Pesanan Anda telah dicatat. Silakan lanjutkan komunikasi dengan merchant melalui WhatsApp.
+          </p>
+          <p className="mb-6 text-sm text-green-600">
+            ID Pesanan: <span className="font-mono font-semibold">{orderId}</span>
+          </p>
+          <div className="flex gap-4 justify-center">
+            <Link
+              href="/orders"
+              className="rounded-lg bg-green-600 px-6 py-3 font-semibold text-white transition hover:bg-green-700"
+            >
+              Lihat Pesanan Saya
+            </Link>
+            <Link
+              href="/products"
+              className="rounded-lg border border-green-600 px-6 py-3 font-semibold text-green-600 transition hover:bg-green-50"
+            >
+              Lanjut Belanja
+            </Link>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="mx-auto flex max-w-4xl flex-col gap-6 px-4 py-16">
@@ -144,6 +246,9 @@ export default function CheckoutPage() {
           ← Kembali ke keranjang
         </Link>
         <h1 className="mt-2 text-3xl font-semibold text-neutral-900">Checkout</h1>
+        <p className="mt-2 text-sm text-neutral-600">
+          Pesanan akan dikirim melalui WhatsApp. Pembayaran dan pengiriman diatur langsung dengan merchant.
+        </p>
       </header>
 
       {error && (
@@ -152,101 +257,55 @@ export default function CheckoutPage() {
         </div>
       )}
 
-      {paymentData ? (
-        <div>
-          <PaymentDisplay
-            transactionId={paymentData.referenceId}
-            paymentType={paymentData.paymentType}
-            qrString={paymentData.qrString}
-            accountNumber={paymentData.accountNumber}
-            bankCode={paymentData.bankCode}
-            amount={paymentData.amount}
-          />
-        </div>
-      ) : (
-        <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
+      <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
         <section className="space-y-6">
-          <div className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-semibold text-neutral-900">Metode Pembayaran</h2>
-            <div className="mt-4 space-y-3">
-              <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-neutral-200 p-4 transition hover:bg-neutral-50">
-                <input
-                  type="radio"
-                  name="paymentType"
-                  value="qris"
-                  checked={paymentType === "qris"}
-                  onChange={(e) => setPaymentType(e.target.value as "qris")}
-                  className="h-4 w-4 text-purple-600"
-                />
-                <div className="flex-1">
-                  <div className="font-semibold text-neutral-900">QRIS</div>
-                  <div className="text-sm text-neutral-600">Bayar dengan QRIS melalui aplikasi e-wallet atau mobile banking</div>
+          {orderGroups.map((group) => (
+            <div key={group.merchantId} className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
+              <div className="mb-4 flex items-center justify-between border-b border-neutral-200 pb-4">
+                <div>
+                  <h2 className="text-xl font-semibold text-neutral-900">{group.merchantName}</h2>
+                  {group.merchantPhone ? (
+                    <p className="text-sm text-neutral-600">
+                      📱 {group.merchantPhone}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-amber-600">
+                      ⚠️ Nomor WhatsApp belum tersedia
+                    </p>
+                  )}
                 </div>
-              </label>
-              <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-neutral-200 p-4 transition hover:bg-neutral-50">
-                <input
-                  type="radio"
-                  name="paymentType"
-                  value="va"
-                  checked={paymentType === "va"}
-                  onChange={(e) => setPaymentType(e.target.value as "va")}
-                  className="h-4 w-4 text-purple-600"
-                />
-                <div className="flex-1">
-                  <div className="font-semibold text-neutral-900">Virtual Account</div>
-                  <div className="text-sm text-neutral-600">Bayar melalui Virtual Account bank</div>
-                </div>
-              </label>
-            </div>
-
-            {paymentType === "va" && (
-              <div className="mt-4">
-                <label className="block text-sm font-semibold text-neutral-900">Pilih Bank</label>
-                <select
-                  value={bankCode}
-                  onChange={(e) => setBankCode(e.target.value)}
-                  className="mt-2 w-full rounded-lg border border-neutral-300 px-4 py-2 text-neutral-900"
-                >
-                  <option value="BCA">BCA</option>
-                  <option value="BNI">BNI</option>
-                  <option value="BRI">BRI</option>
-                  <option value="MANDIRI">Mandiri</option>
-                </select>
               </div>
-            )}
-          </div>
 
-          <div className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-semibold text-neutral-900">Ringkasan Pesanan</h2>
-            <div className="mt-4 space-y-3">
-              {items.map((item) => (
-                <div key={item.product.id} className="flex items-center gap-3">
-                  <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg border border-neutral-200 bg-neutral-100">
-                    <Image
-                      src={item.product.imageUrl ?? fallbackProductImage}
-                      alt={item.product.name}
-                      fill
-                      className="object-cover"
-                      sizes="64px"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <div className="font-semibold text-neutral-900">{item.product.name}</div>
-                    <div className="text-sm text-neutral-600">
-                      {item.quantity} × Rp {item.product.price.toLocaleString("id-ID")}
+              <div className="space-y-3">
+                {group.items.map((item) => (
+                  <div key={item.product.id} className="flex items-center gap-3">
+                    <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg border border-neutral-200 bg-neutral-100">
+                      <Image
+                        src={item.product.imageUrl ?? fallbackProductImage}
+                        alt={item.product.name}
+                        fill
+                        className="object-cover"
+                        sizes="64px"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-semibold text-neutral-900">{item.product.name}</div>
+                      <div className="text-sm text-neutral-600">
+                        {item.quantity} × Rp {item.product.price.toLocaleString("id-ID")}
+                      </div>
+                    </div>
+                    <div className="font-semibold text-neutral-900">
+                      Rp {(item.product.price * item.quantity).toLocaleString("id-ID")}
                     </div>
                   </div>
-                  <div className="font-semibold text-neutral-900">
-                    Rp {(item.product.price * item.quantity).toLocaleString("id-ID")}
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          ))}
         </section>
 
         <aside className="h-fit rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
-          <h2 className="text-xl font-semibold text-neutral-900">Total Pembayaran</h2>
+          <h2 className="text-xl font-semibold text-neutral-900">Ringkasan Pesanan</h2>
           <div className="mt-4 space-y-3 border-t border-neutral-200 pt-4">
             <div className="flex items-center justify-between text-sm">
               <span className="text-neutral-600">Subtotal</span>
@@ -266,15 +325,25 @@ export default function CheckoutPage() {
           <button
             type="button"
             onClick={handleCheckout}
-            disabled={isProcessing}
-            className="mt-6 w-full rounded-lg bg-purple-600 px-4 py-3 font-semibold text-white transition hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={isProcessing || orderGroups.some((g) => !g.merchantPhone)}
+            className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-3 font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {isProcessing ? "Memproses..." : "Buat Pesanan"}
+            {isProcessing ? (
+              "Memproses..."
+            ) : (
+              <>
+                <span>📱</span>
+                <span>Kirim via WhatsApp</span>
+              </>
+            )}
           </button>
+          {orderGroups.some((g) => !g.merchantPhone) && (
+            <p className="mt-2 text-xs text-amber-600">
+              Beberapa merchant belum memiliki nomor WhatsApp. Silakan hubungi merchant terlebih dahulu.
+            </p>
+          )}
         </aside>
       </div>
-      )}
     </main>
   );
 }
-

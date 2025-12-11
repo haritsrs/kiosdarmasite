@@ -7,17 +7,10 @@ import { getMerchants } from "~/services/firebase/merchants";
 import { type ProductSummary } from "~/models/marketplace";
 import { useEffect } from "react";
 
-const FALLBACK_CATEGORIES = [
-  { id: "food", name: "Makanan" },
-  { id: "beverage", name: "Minuman" },
-  { id: "daily", name: "Kebutuhan Harian" },
-  { id: "snack", name: "Snack" },
-  { id: "health", name: "Kesehatan" },
-];
-
 export default function ProductsPage() {
   const [products, setProducts] = useState<ProductSummary[]>([]);
   const [merchants, setMerchants] = useState<Array<{ id: string; name: string }>>([]);
+  const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("");
@@ -34,6 +27,17 @@ export default function ProductsPage() {
         ]);
         setProducts(productsData);
         setMerchants(merchantsData.map((m) => ({ id: m.id, name: m.name })));
+
+        // Extract unique categories from products
+        const categoryMap = new Map<string, string>();
+        for (const product of productsData) {
+          if (product.categoryId && !categoryMap.has(product.categoryId)) {
+            const categoryName = product.categoryId.charAt(0).toUpperCase() + product.categoryId.slice(1);
+            categoryMap.set(product.categoryId, categoryName);
+          }
+        }
+        const uniqueCategories = Array.from(categoryMap.entries()).map(([id, name]) => ({ id, name }));
+        setCategories(uniqueCategories);
       } catch (error) {
         console.error("Error loading products:", error);
       } finally {
@@ -135,7 +139,7 @@ export default function ProductsPage() {
               className="w-full rounded-lg border border-neutral-300 px-4 py-2 text-neutral-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-200"
             >
               <option value="">Semua Kategori</option>
-              {FALLBACK_CATEGORIES.map((cat) => (
+              {categories.map((cat) => (
                 <option key={cat.id} value={cat.id}>
                   {cat.name}
                 </option>

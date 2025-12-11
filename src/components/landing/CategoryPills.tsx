@@ -5,6 +5,14 @@ type CategoryPillsProps = {
 };
 
 export function CategoryPills({ categories }: CategoryPillsProps) {
+  if (categories.length === 0) {
+    return (
+      <div className="rounded-lg border border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-500">
+        Belum ada kategori produk.
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-wrap gap-3">
       {categories.map((category) => (

@@ -9,6 +9,14 @@ type PromoSpotlightProps = {
 const fallbackBanner = "/img/promo-slot-default.svg";
 
 export function PromoSpotlight({ promos }: PromoSpotlightProps) {
+  if (promos.length === 0) {
+    return (
+      <div className="rounded-lg border border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-500">
+        Belum ada promo yang tersedia.
+      </div>
+    );
+  }
+
   return (
     <div className="grid gap-4 md:grid-cols-2">
       {promos.map((promo) => (

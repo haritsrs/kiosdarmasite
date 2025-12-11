@@ -82,16 +82,34 @@ export function CartProvider({ children }: { children: ReactNode }) {
           
           setItems(mergedCart);
           saveCartToLocalStorage(mergedCart);
-          set(cartRef, mergedCart).catch(console.error);
+          set(cartRef, mergedCart).catch((error) => {
+            if (error.code === "PERMISSION_DENIED") {
+              console.warn("Cart write permission denied. Make sure Firebase rules are updated.");
+            } else {
+              console.error("Failed to sync cart to Firebase:", error);
+            }
+          });
         } else {
           // No Firestore cart, sync localStorage to Firestore
           const localCart = loadCartFromLocalStorage();
           if (localCart.length > 0) {
-            set(cartRef, localCart).catch(console.error);
+            set(cartRef, localCart).catch((error) => {
+              if (error.code === "PERMISSION_DENIED") {
+                console.warn("Cart write permission denied. Make sure Firebase rules are updated.");
+              } else {
+                console.error("Failed to sync cart to Firebase:", error);
+              }
+            });
           }
         }
       })
-      .catch(console.error);
+      .catch((error) => {
+        if (error.code === "PERMISSION_DENIED") {
+          console.warn("Cart read permission denied. Make sure Firebase rules are updated.");
+        } else {
+          console.error("Failed to load cart from Firebase:", error);
+        }
+      });
 
     // Listen for real-time updates
     const unsubscribe = onValue(cartRef, (snapshot) => {
@@ -114,10 +132,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
       saveCartToLocalStorage(items);
       
       // Also save to Firestore if user is logged in
-      if (user) {
+      if (user && user.uid) {
         const db = getRealtimeDatabase();
         const cartRef = ref(db, `carts/${user.uid}`);
-        set(cartRef, items).catch(console.error);
+        set(cartRef, items).catch((error) => {
+          if (error.code === "PERMISSION_DENIED") {
+            console.warn("Cart write permission denied. Make sure Firebase rules are updated with cart rules.");
+          } else {
+            console.error("Failed to save cart to Firebase:", error);
+          }
+        });
       }
     }
   }, [items, user, isLoading]);
