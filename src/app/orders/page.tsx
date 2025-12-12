@@ -102,10 +102,29 @@ export default function OrdersPage() {
   };
 
   const openWhatsApp = (order: Order) => {
-    if (!order.whatsappMessage) return;
-    // Extract phone number from WhatsApp message or use a default
-    // For now, just show the message - user can copy it
-    alert(`Pesan WhatsApp:\n\n${order.whatsappMessage}\n\nSilakan salin dan kirim ke merchant melalui WhatsApp.`);
+    if (!order.whatsappMessage) {
+      alert("Pesan WhatsApp tidak tersedia untuk pesanan ini.");
+      return;
+    }
+
+    // Use stored merchant phone if available
+    if (order.merchantPhone) {
+      const phoneNumber = order.merchantPhone.replace(/[^0-9]/g, "");
+      const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(order.whatsappMessage)}`;
+      window.open(whatsappUrl, "_blank");
+    } else {
+      // Fallback: show message in alert with option to copy
+      const shouldOpen = confirm(
+        `Pesan WhatsApp:\n\n${order.whatsappMessage}\n\nKlik OK untuk menyalin pesan ke clipboard, lalu kirim ke merchant melalui WhatsApp.`
+      );
+      if (shouldOpen) {
+        navigator.clipboard.writeText(order.whatsappMessage).then(() => {
+          alert("Pesan telah disalin ke clipboard. Silakan buka WhatsApp dan kirim ke merchant.");
+        }).catch(() => {
+          alert("Gagal menyalin pesan. Silakan salin manual dari pesan di atas.");
+        });
+      }
+    }
   };
 
   if (authLoading || isLoading) {

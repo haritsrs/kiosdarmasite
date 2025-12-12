@@ -20,6 +20,9 @@ export interface Order {
   userConfirmed: boolean;
   merchantConfirmed: boolean;
   whatsappMessage?: string;
+  merchantId?: string;
+  merchantName?: string;
+  merchantPhone?: string;
   createdAt: number;
   updatedAt: number;
   completedAt?: number;
@@ -30,7 +33,10 @@ export interface Order {
 export async function createOrder(
   userId: string,
   items: OrderItem[],
-  whatsappMessage: string
+  whatsappMessage: string,
+  merchantId?: string,
+  merchantName?: string,
+  merchantPhone?: string
 ): Promise<string> {
   const db = getRealtimeDatabase();
   const ordersRef = ref(db, `marketplaceOrders/${userId}`);
@@ -50,6 +56,9 @@ export async function createOrder(
     userConfirmed: false,
     merchantConfirmed: false,
     whatsappMessage,
+    merchantId,
+    merchantName,
+    merchantPhone,
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };

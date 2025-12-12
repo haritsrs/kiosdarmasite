@@ -119,20 +119,10 @@ export default function CartPage() {
 
         <aside className="h-fit rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
           <h2 className="text-xl font-semibold text-neutral-900">Ringkasan</h2>
-          <div className="mt-4 space-y-3 border-t border-neutral-200 pt-4">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-neutral-600">Subtotal ({totalItems} {totalItems === 1 ? "item" : "items"})</span>
-              <span className="font-semibold text-neutral-900">Rp {totalPrice.toLocaleString("id-ID")}</span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-neutral-600">Ongkir</span>
-              <span className="font-semibold text-neutral-900">-</span>
-            </div>
-            <div className="border-t border-neutral-200 pt-3">
-              <div className="flex items-center justify-between">
-                <span className="font-semibold text-neutral-900">Total</span>
-                <span className="text-xl font-bold text-neutral-900">Rp {totalPrice.toLocaleString("id-ID")}</span>
-              </div>
+          <div className="mt-4 border-t border-neutral-200 pt-4">
+            <div className="flex items-center justify-between">
+              <span className="font-semibold text-neutral-900">Total ({totalItems} {totalItems === 1 ? "item" : "items"})</span>
+              <span className="text-xl font-bold text-neutral-900">Rp {totalPrice.toLocaleString("id-ID")}</span>
             </div>
           </div>
           <Link

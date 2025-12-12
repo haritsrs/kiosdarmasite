@@ -1,12 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
 
-const dailyDeals = [
-  { label: "Flash Sale Pagi", description: "08.00 - 11.00 | diskon sampai 60%" },
-  { label: "Voucher Ongkir", description: "Gratis ongkir s/d Rp20.000 di Jabodetabek" },
-  { label: "Kasir Sync", description: "Stok merchant update otomatis setiap 5 menit" },
-];
-
 const heroMedia = {
   main: { src: "/img/hero-main-banner.svg", alt: "Slot banner utama KiosDarma" },
   secondary: [
@@ -25,7 +19,7 @@ export function LandingHero() {
   return (
     <section className="border-b border-slate-200 bg-[#f7f7f7]">
       <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-12">
-        <div className="grid gap-8 lg:grid-cols-[1.65fr_1fr]">
+        <div>
           <div className="space-y-4">
             <span className="inline-block bg-purple-600 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.35em] text-white">
               Marketplace UMKM
@@ -77,42 +71,7 @@ export function LandingHero() {
                 ))}
               </div>
             </div>
-
-            <ul className="grid gap-3 rounded-sm border border-slate-200 bg-white p-4 text-sm text-slate-700">
-              {dailyDeals.map((deal) => (
-                <li key={deal.label} className="flex flex-col gap-1 border-b border-dashed border-slate-200 pb-3 last:border-b-0 last:pb-0">
-                  <span className="text-xs font-bold uppercase tracking-[0.3em] text-purple-600">{deal.label}</span>
-                  <span>{deal.description}</span>
-                </li>
-              ))}
-            </ul>
           </div>
-
-          <aside className="space-y-4 rounded-sm border border-slate-200 bg-white p-4 text-sm text-slate-700">
-            <div className="relative h-48 overflow-hidden rounded-sm border border-slate-200">
-              <Image src="/img/promo-slot-default.svg" alt="Slot gambar promo kiosdarma" fill className="object-cover" sizes="(min-width: 1024px) 320px, 100vw" priority />
-            </div>
-            <header className="border-b border-dashed border-slate-200 pb-3 text-xs font-bold uppercase tracking-[0.35em] text-slate-500">
-              Status Sistem
-            </header>
-            <div className="space-y-3 text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">
-              <div className="flex items-center justify-between">
-                <span>Kasir sync</span>
-                <span className="text-purple-600">Normal</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>QRIS Xendit</span>
-                <span className="text-purple-600">Normal</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Virtual account</span>
-                <span className="text-purple-400">Padat</span>
-              </div>
-            </div>
-            <footer className="border-t border-slate-200 pt-3 text-[11px] text-slate-500">
-              Update terakhir pukul 07:45 WIB • Data realtime dari dashboard merchant.
-            </footer>
-          </aside>
         </div>
 
         <div className="grid gap-3 md:grid-cols-3">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -11,22 +11,6 @@ import { getMerchantById } from "~/services/firebase/merchants";
 
 const fallbackProductImage = "/img/product-card-default.svg";
 
-interface OrderGroup {
-  merchantId: string;
-  merchantName: string;
-  merchantPhone?: string;
-  items: Array<{
-    product: {
-      id: string;
-      name: string;
-      price: number;
-      imageUrl?: string;
-    };
-    quantity: number;
-  }>;
-  subtotal: number;
-}
-
 export default function CheckoutPage() {
   const router = useRouter();
   const { user } = useAuth();
@@ -35,56 +19,40 @@ export default function CheckoutPage() {
   const [error, setError] = useState<string | null>(null);
   const [orderCreated, setOrderCreated] = useState(false);
   const [orderId, setOrderId] = useState<string | null>(null);
-  const [merchantPhones, setMerchantPhones] = useState<Record<string, string>>({});
+  const [merchantName, setMerchantName] = useState<string>("");
+  const [merchantPhone, setMerchantPhone] = useState<string | null>(null);
 
-  // Group items by merchant
-  const orderGroups = useMemo(() => {
-    const groups: Record<string, OrderGroup> = {};
+  // Validate single merchant and load merchant info
+  useEffect(() => {
+    if (items.length === 0) return;
 
-    for (const item of items) {
-      const merchantId = item.product.merchantId;
-      if (!groups[merchantId]) {
-        groups[merchantId] = {
-          merchantId,
-          merchantName: item.product.merchantName,
-          merchantPhone: merchantPhones[merchantId],
-          items: [],
-          subtotal: 0,
-        };
-      }
-
-      groups[merchantId]!.items.push(item);
-      groups[merchantId]!.subtotal += item.product.price * item.quantity;
+    // Check if all items are from the same merchant
+    const merchantIds = new Set(items.map((item) => item.product.merchantId));
+    if (merchantIds.size > 1) {
+      setError("Keranjang Anda berisi produk dari beberapa merchant. Silakan checkout dari satu merchant saja.");
+      return;
     }
 
-    return Object.values(groups);
-  }, [items, merchantPhones]);
+    // Load merchant information
+    const merchantId = items[0]!.product.merchantId;
+    setMerchantName(items[0]!.product.merchantName);
 
-  // Load merchant phone numbers
-  useMemo(() => {
-    const loadMerchantPhones = async () => {
-      const phones: Record<string, string> = {};
-      for (const group of orderGroups) {
-        if (!group.merchantPhone) {
-          try {
-            const merchant = await getMerchantById(group.merchantId);
-            if (merchant?.phoneNumber) {
-              phones[group.merchantId] = merchant.phoneNumber;
-            }
-          } catch (error) {
-            console.error(`Failed to load merchant ${group.merchantId}:`, error);
-          }
+    const loadMerchant = async () => {
+      try {
+        const merchant = await getMerchantById(merchantId);
+        if (merchant?.phoneNumber) {
+          setMerchantPhone(merchant.phoneNumber);
+        } else {
+          setError(`Nomor WhatsApp merchant ${merchant?.name ?? merchantName} belum tersedia. Silakan hubungi merchant terlebih dahulu.`);
         }
-      }
-      if (Object.keys(phones).length > 0) {
-        setMerchantPhones((prev) => ({ ...prev, ...phones }));
+      } catch (error) {
+        console.error("Failed to load merchant:", error);
+        setError("Gagal memuat informasi merchant.");
       }
     };
 
-    if (orderGroups.length > 0) {
-      loadMerchantPhones();
-    }
-  }, [orderGroups]);
+    loadMerchant();
+  }, [items, merchantName]);
 
   if (cartLoading) {
     return (
@@ -134,19 +102,19 @@ export default function CheckoutPage() {
     );
   }
 
-  const generateWhatsAppMessage = (group: OrderGroup): string => {
+  const generateWhatsAppMessage = (): string => {
     const customerName = user.displayName ?? user.email?.split("@")[0] ?? "Pelanggan";
-    let message = `Halo ${group.merchantName}! 👋\n\n`;
+    let message = `Halo ${merchantName}! 👋\n\n`;
     message += `Saya ingin memesan:\n\n`;
 
-    for (const item of group.items) {
+    for (const item of items) {
       message += `• ${item.product.name}\n`;
       message += `  Jumlah: ${item.quantity}\n`;
       message += `  Harga: Rp ${item.product.price.toLocaleString("id-ID")}\n`;
       message += `  Subtotal: Rp ${(item.product.price * item.quantity).toLocaleString("id-ID")}\n\n`;
     }
 
-    message += `Total: Rp ${group.subtotal.toLocaleString("id-ID")}\n\n`;
+    message += `Total: Rp ${totalPrice.toLocaleString("id-ID")}\n\n`;
     message += `Nama: ${customerName}\n`;
     if (user.email) {
       message += `Email: ${user.email}\n`;
@@ -157,19 +125,16 @@ export default function CheckoutPage() {
   };
 
   const handleCheckout = async () => {
+    if (!merchantPhone) {
+      setError("Nomor WhatsApp merchant belum tersedia. Silakan hubungi merchant terlebih dahulu.");
+      return;
+    }
+
     setIsProcessing(true);
     setError(null);
 
     try {
-      // For now, we'll create one order per merchant group
-      // In the future, you might want to create separate orders for each merchant
-      const firstGroup = orderGroups[0]!;
-      
-      if (!firstGroup.merchantPhone) {
-        throw new Error(`Nomor WhatsApp merchant ${firstGroup.merchantName} belum tersedia. Silakan hubungi merchant terlebih dahulu.`);
-      }
-
-      const orderItems = firstGroup.items.map((item) => ({
+      const orderItems = items.map((item) => ({
         productId: item.product.id,
         productName: item.product.name,
         quantity: item.quantity,
@@ -177,19 +142,23 @@ export default function CheckoutPage() {
         subtotal: item.product.price * item.quantity,
       }));
 
-      const whatsappMessage = generateWhatsAppMessage(firstGroup);
+      const whatsappMessage = generateWhatsAppMessage();
 
       // Create order in Firebase
+      const merchantId = items[0]!.product.merchantId;
       const newOrderId = await createOrder(
         user.uid,
         orderItems,
-        whatsappMessage
+        whatsappMessage,
+        merchantId,
+        merchantName,
+        merchantPhone
       );
 
       setOrderId(newOrderId);
 
       // Open WhatsApp with the message
-      const phoneNumber = firstGroup.merchantPhone.replace(/[^0-9]/g, "");
+      const phoneNumber = merchantPhone.replace(/[^0-9]/g, "");
       const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(whatsappMessage)}`;
       window.open(whatsappUrl, "_blank");
 
@@ -259,73 +228,57 @@ export default function CheckoutPage() {
 
       <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
         <section className="space-y-6">
-          {orderGroups.map((group) => (
-            <div key={group.merchantId} className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
-              <div className="mb-4 flex items-center justify-between border-b border-neutral-200 pb-4">
-                <div>
-                  <h2 className="text-xl font-semibold text-neutral-900">{group.merchantName}</h2>
-                  {group.merchantPhone ? (
-                    <p className="text-sm text-neutral-600">
-                      📱 {group.merchantPhone}
-                    </p>
-                  ) : (
-                    <p className="text-sm text-amber-600">
-                      ⚠️ Nomor WhatsApp belum tersedia
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                {group.items.map((item) => (
-                  <div key={item.product.id} className="flex items-center gap-3">
-                    <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg border border-neutral-200 bg-neutral-100">
-                      <Image
-                        src={item.product.imageUrl ?? fallbackProductImage}
-                        alt={item.product.name}
-                        fill
-                        className="object-cover"
-                        sizes="64px"
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <div className="font-semibold text-neutral-900">{item.product.name}</div>
-                      <div className="text-sm text-neutral-600">
-                        {item.quantity} × Rp {item.product.price.toLocaleString("id-ID")}
-                      </div>
-                    </div>
-                    <div className="font-semibold text-neutral-900">
-                      Rp {(item.product.price * item.quantity).toLocaleString("id-ID")}
-                    </div>
-                  </div>
-                ))}
+          <div className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
+            <div className="mb-4 flex items-center justify-between border-b border-neutral-200 pb-4">
+              <div>
+                <h2 className="text-xl font-semibold text-neutral-900">{merchantName}</h2>
+                {merchantPhone ? (
+                  <p className="text-sm text-neutral-600">📱 {merchantPhone}</p>
+                ) : (
+                  <p className="text-sm text-amber-600">⚠️ Memuat nomor WhatsApp...</p>
+                )}
               </div>
             </div>
-          ))}
+
+            <div className="space-y-3">
+              {items.map((item) => (
+                <div key={item.product.id} className="flex items-center gap-3">
+                  <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg border border-neutral-200 bg-neutral-100">
+                    <Image
+                      src={item.product.imageUrl ?? fallbackProductImage}
+                      alt={item.product.name}
+                      fill
+                      className="object-cover"
+                      sizes="64px"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-semibold text-neutral-900">{item.product.name}</div>
+                    <div className="text-sm text-neutral-600">
+                      {item.quantity} × Rp {item.product.price.toLocaleString("id-ID")}
+                    </div>
+                  </div>
+                  <div className="font-semibold text-neutral-900">
+                    Rp {(item.product.price * item.quantity).toLocaleString("id-ID")}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </section>
 
         <aside className="h-fit rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
           <h2 className="text-xl font-semibold text-neutral-900">Ringkasan Pesanan</h2>
           <div className="mt-4 space-y-3 border-t border-neutral-200 pt-4">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-neutral-600">Subtotal</span>
-              <span className="font-semibold text-neutral-900">Rp {totalPrice.toLocaleString("id-ID")}</span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-neutral-600">Ongkir</span>
-              <span className="font-semibold text-neutral-900">-</span>
-            </div>
-            <div className="border-t border-neutral-200 pt-3">
-              <div className="flex items-center justify-between">
-                <span className="font-semibold text-neutral-900">Total</span>
-                <span className="text-xl font-bold text-neutral-900">Rp {totalPrice.toLocaleString("id-ID")}</span>
-              </div>
+            <div className="flex items-center justify-between">
+              <span className="font-semibold text-neutral-900">Total</span>
+              <span className="text-xl font-bold text-neutral-900">Rp {totalPrice.toLocaleString("id-ID")}</span>
             </div>
           </div>
           <button
             type="button"
             onClick={handleCheckout}
-            disabled={isProcessing || orderGroups.some((g) => !g.merchantPhone)}
+            disabled={isProcessing || !merchantPhone}
             className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-3 font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isProcessing ? (
@@ -337,9 +290,9 @@ export default function CheckoutPage() {
               </>
             )}
           </button>
-          {orderGroups.some((g) => !g.merchantPhone) && (
+          {!merchantPhone && (
             <p className="mt-2 text-xs text-amber-600">
-              Beberapa merchant belum memiliki nomor WhatsApp. Silakan hubungi merchant terlebih dahulu.
+              Nomor WhatsApp merchant belum tersedia. Silakan hubungi merchant terlebih dahulu.
             </p>
           )}
         </aside>

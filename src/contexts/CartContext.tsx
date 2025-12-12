@@ -148,6 +148,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const addItem = (product: ProductSummary, quantity: number = 1) => {
     setItems((prevItems) => {
+      // Validate single merchant - if cart has items, check if new product is from same merchant
+      if (prevItems.length > 0) {
+        const existingMerchantId = prevItems[0]!.product.merchantId;
+        if (product.merchantId !== existingMerchantId) {
+          throw new Error(
+            `Produk ini dari merchant berbeda. Silakan checkout produk dari ${prevItems[0]!.product.merchantName} terlebih dahulu, atau hapus item dari keranjang untuk menambahkan produk dari merchant lain.`
+          );
+        }
+      }
+
       const existingIndex = prevItems.findIndex((item) => item.product.id === product.id);
       
       if (existingIndex >= 0) {
