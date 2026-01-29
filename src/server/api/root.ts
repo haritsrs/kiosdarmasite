@@ -1,4 +1,5 @@
 import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
+import { marketplaceRouter } from "~/server/api/routers/marketplace";
 
 /**
  * This is the primary router for your server.
@@ -6,7 +7,7 @@ import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
  * All routers added in /api/routers should be manually added here.
  */
 export const appRouter = createTRPCRouter({
-  // Add marketplace routers here as needed
+  marketplace: marketplaceRouter,
 });
 
 // export type definition of API

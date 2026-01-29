@@ -61,21 +61,29 @@ export default function SupportPage() {
       </header>
 
       {submitStatus === "success" && (
-        <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-800">
+        <div
+          role="alert"
+          aria-live="polite"
+          className="rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-800"
+        >
           <p className="font-semibold">Pesan berhasil dikirim!</p>
           <p className="mt-1">Kami akan merespons melalui email Anda segera.</p>
         </div>
       )}
 
       {submitStatus === "error" && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+        <div
+          role="alert"
+          aria-live="polite"
+          className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800"
+        >
           <p className="font-semibold">Gagal mengirim pesan</p>
           <p className="mt-1">{errorMessage}</p>
         </div>
       )}
 
       <section className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6" noValidate>
           <div>
             <label htmlFor="name" className="mb-2 block text-sm font-semibold text-neutral-900">
               Nama <span className="text-red-500">*</span>

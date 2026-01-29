@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { type Metadata } from "next";
 
 import { CategoryPills } from "../components/landing/CategoryPills";
 import { LandingHero } from "../components/landing/LandingHero";
@@ -8,6 +9,14 @@ import { MerchantHighlights } from "../components/landing/MerchantHighlights";
 import { ProductShowcase } from "../components/landing/ProductShowcase";
 import { PromoSpotlight } from "../components/landing/PromoSpotlight";
 import { getLandingSnapshot } from "~/services/marketplace";
+
+export const metadata: Metadata = {
+  title: "Beranda",
+  description: "Marketplace UMKM terintegrasi dengan aplikasi kasir KiosDarma. Belanja kebutuhan warung dan rumah tangga langsung dari merchant terpercaya.",
+  alternates: {
+    canonical: "/",
+  },
+};
 
 const midBanners = [
   { id: "mid-banner-1", src: "/img/home-banner-wide-1.svg", alt: "Banner promo utama KiosDarma", href: "/products" },

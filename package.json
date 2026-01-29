@@ -11,6 +11,12 @@
     "format:write": "prettier --write \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
+    "lighthouse": "lhci autorun",
+    "analyze": "ANALYZE=true next build",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage",
+    "test:e2e": "playwright test",
     "preview": "next build && next start",
     "start": "next start",
     "typecheck": "tsc --noEmit"

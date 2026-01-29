@@ -5,8 +5,6 @@ import { type TransactionStatus } from "~/models/marketplace";
 export interface Transaction {
   id: string;
   type: "online" | "offline";
-  paymentType?: "qris" | "va";
-  paymentId?: string;
   amount: number;
   status: TransactionStatus;
   userId?: string;
@@ -24,9 +22,6 @@ export interface Transaction {
   }>;
   createdAt: number;
   updatedAt?: number;
-  qrString?: string;
-  accountNumber?: string;
-  bankCode?: string;
 }
 
 export async function getTransactionsByUserId(userId: string): Promise<Transaction[]> {
@@ -47,8 +42,6 @@ export async function getTransactionsByUserId(userId: string): Promise<Transacti
     const transaction: Transaction = {
       id,
       type: data.type ?? "online",
-      paymentType: data.paymentType,
-      paymentId: data.paymentId,
       amount: data.amount ?? 0,
       status: data.status ?? "pending",
       userId: data.userId ?? userId,
@@ -57,9 +50,6 @@ export async function getTransactionsByUserId(userId: string): Promise<Transacti
       items: data.items,
       createdAt: data.createdAt ?? Date.now(),
       updatedAt: data.updatedAt,
-      qrString: data.qrString,
-      accountNumber: data.accountNumber,
-      bankCode: data.bankCode,
     };
 
     transactions.push(transaction);
@@ -82,8 +72,6 @@ export async function getTransactionById(transactionId: string): Promise<Transac
   return {
     id: transactionId,
     type: data.type ?? "online",
-    paymentType: data.paymentType,
-    paymentId: data.paymentId,
     amount: data.amount ?? 0,
     status: data.status ?? "pending",
     customer: data.customer,
@@ -91,9 +79,6 @@ export async function getTransactionById(transactionId: string): Promise<Transac
     items: data.items,
     createdAt: data.createdAt ?? Date.now(),
     updatedAt: data.updatedAt,
-    qrString: data.qrString,
-    accountNumber: data.accountNumber,
-    bankCode: data.bankCode,
   };
 }
 

@@ -8,7 +8,6 @@ export const env = createEnv({
    */
   server: {
     NODE_ENV: z.enum(["development", "test", "production"]),
-    XENDIT_SECRET_KEY: z.string().min(1).optional(),
     FIREBASE_ADMIN_PROJECT_ID: z.string().optional(),
     FIREBASE_ADMIN_CLIENT_EMAIL: z.string().optional(),
     FIREBASE_ADMIN_PRIVATE_KEY: z.string().optional(),
@@ -35,7 +34,6 @@ export const env = createEnv({
    */
   runtimeEnv: {
     NODE_ENV: process.env.NODE_ENV,
-    XENDIT_SECRET_KEY: process.env.XENDIT_SECRET_KEY,
     FIREBASE_ADMIN_PROJECT_ID: process.env.FIREBASE_ADMIN_PROJECT_ID,
     FIREBASE_ADMIN_CLIENT_EMAIL: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
     FIREBASE_ADMIN_PRIVATE_KEY: process.env.FIREBASE_ADMIN_PRIVATE_KEY,

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "~/contexts/AuthContext";
+import { PasswordStrength } from "~/components/auth/PasswordStrength";
 
 export default function RegisterPage() {
   const [name, setName] = useState("");
@@ -37,44 +38,68 @@ export default function RegisterPage() {
       </header>
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+        <div
+          role="alert"
+          aria-live="polite"
+          className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+        >
+          {error}
+        </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
-        <label className="flex flex-col gap-2 text-sm font-medium text-neutral-700">
-          Nama lengkap
+      <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm" noValidate>
+        <div className="flex flex-col gap-2">
+          <label htmlFor="name" className="text-sm font-medium text-neutral-700">
+            Nama lengkap
+          </label>
           <input
+            id="name"
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Nama sesuai identitas"
             required
+            autoComplete="name"
+            aria-describedby={error ? "name-error" : undefined}
+            aria-invalid={error ? "true" : "false"}
             className="rounded-lg border border-neutral-300 px-3 py-2 text-neutral-800 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-200"
           />
-        </label>
-        <label className="flex flex-col gap-2 text-sm font-medium text-neutral-700">
-          Email
+        </div>
+        <div className="flex flex-col gap-2">
+          <label htmlFor="register-email" className="text-sm font-medium text-neutral-700">
+            Email
+          </label>
           <input
+            id="register-email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="nama@contoh.com"
             required
+            autoComplete="email"
+            aria-describedby={error ? "email-error" : undefined}
+            aria-invalid={error ? "true" : "false"}
             className="rounded-lg border border-neutral-300 px-3 py-2 text-neutral-800 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-200"
           />
-        </label>
-        <label className="flex flex-col gap-2 text-sm font-medium text-neutral-700">
-          Kata sandi
+        </div>
+        <div className="flex flex-col gap-2">
+          <label htmlFor="register-password" className="text-sm font-medium text-neutral-700">
+            Kata sandi
+          </label>
           <input
+            id="register-password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            minLength={6}
+            minLength={8}
+            autoComplete="new-password"
+            aria-describedby="password-help password-error"
+            aria-invalid={error ? "true" : "false"}
             className="rounded-lg border border-neutral-300 px-3 py-2 text-neutral-800 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-200"
           />
-          <span className="text-xs text-neutral-500">Minimal 6 karakter</span>
-        </label>
+          <PasswordStrength password={password} />
+        </div>
         <button
           type="submit"
           disabled={loading}

@@ -1,38 +1,51 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ref, push, set } from "firebase/database";
 import { getRealtimeDatabase } from "~/services/firebase/client";
-
-interface ContactFormData {
-  name: string;
-  email: string;
-  subject: string;
-  message: string;
-}
+import { contactFormLimiter, getClientIdentifier } from "~/lib/rate-limit";
+import { contactFormSchema } from "~/lib/validation";
+import { sanitizeForHtml, sanitizeEmailContent } from "~/lib/sanitize";
 
 export async function POST(request: NextRequest) {
+  // Rate limiting
+  const identifier = getClientIdentifier(request);
+  const rateLimitResult = contactFormLimiter.check(request, identifier);
+
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      {
+        error: "Terlalu banyak permintaan. Silakan coba lagi nanti.",
+      },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(Math.ceil((rateLimitResult.reset - Date.now()) / 1000)),
+          "X-RateLimit-Limit": String(rateLimitResult.limit),
+          "X-RateLimit-Remaining": String(rateLimitResult.remaining),
+          "X-RateLimit-Reset": String(rateLimitResult.reset),
+        },
+      }
+    );
+  }
+
   try {
     const body = await request.json();
-    const { name, email, subject, message }: ContactFormData = body;
 
-    // Validation
-    if (!name || !email || !subject || !message) {
-      return NextResponse.json({ error: "Semua field harus diisi" }, { status: 400 });
+    // Validate with Zod schema
+    const validationResult = contactFormSchema.safeParse(body);
+    if (!validationResult.success) {
+      const firstError = validationResult.error.errors[0];
+      return NextResponse.json(
+        { error: firstError?.message ?? "Validasi gagal" },
+        { status: 400 }
+      );
     }
 
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return NextResponse.json({ error: "Format email tidak valid" }, { status: 400 });
-    }
+    const { name, email, subject, message } = validationResult.data;
 
-    // Basic spam protection - check message length
-    if (message.length < 10) {
-      return NextResponse.json({ error: "Pesan terlalu pendek" }, { status: 400 });
-    }
-
-    if (message.length > 5000) {
-      return NextResponse.json({ error: "Pesan terlalu panjang" }, { status: 400 });
-    }
+    // Sanitize inputs
+    const sanitizedName = sanitizeForHtml(name);
+    const sanitizedSubject = sanitizeForHtml(subject);
+    const sanitizedMessage = sanitizeEmailContent(message);
 
     // Store in Firebase
     const db = getRealtimeDatabase();
@@ -45,10 +58,10 @@ export async function POST(request: NextRequest) {
 
     const ticketData = {
       id: ticketId,
-      name,
-      email,
-      subject,
-      message,
+      name: sanitizedName,
+      email, // Already validated and lowercased by Zod
+      subject: sanitizedSubject,
+      message: sanitizedMessage,
       status: "pending",
       createdAt: Date.now(),
       repliedAt: null,
@@ -57,15 +70,16 @@ export async function POST(request: NextRequest) {
     await set(ticketRef, ticketData);
 
     // Send email using Resend (or fallback to simple email service)
+    // Use sanitized values for email content
     const emailContent = `
 Dukungan Baru dari KiosDarma Marketplace
 
-Nama: ${name}
+Nama: ${sanitizedName}
 Email: ${email}
-Subjek: ${subject}
+Subjek: ${sanitizedSubject}
 
 Pesan:
-${message}
+${sanitizedMessage}
 
 ---
 Ticket ID: ${ticketId}
@@ -94,13 +108,13 @@ Waktu: ${new Date().toLocaleString("id-ID")}
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <h2 style="color: #7c3aed;">Dukungan Baru dari KiosDarma Marketplace</h2>
                 <div style="background: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                  <p><strong>Nama:</strong> ${name}</p>
+                  <p><strong>Nama:</strong> ${sanitizedName}</p>
                   <p><strong>Email:</strong> ${email}</p>
-                  <p><strong>Subjek:</strong> ${subject}</p>
+                  <p><strong>Subjek:</strong> ${sanitizedSubject}</p>
                 </div>
                 <div style="margin: 20px 0;">
                   <h3>Pesan:</h3>
-                  <p style="white-space: pre-wrap;">${message}</p>
+                  <p style="white-space: pre-wrap;">${sanitizedMessage}</p>
                 </div>
                 <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
                 <p style="color: #6b7280; font-size: 12px;">

@@ -1,6 +1,6 @@
 # KiosDarma Marketplace – Integrasi Tahap Awal
 
-Dokumen ini merangkum prioritas implementasi untuk membawa website marketplace KiosDarma live dengan integrasi Firebase, Xendit, dan ekosistem aplikasi merchant.
+Dokumen ini merangkum prioritas implementasi untuk membawa website marketplace KiosDarma live dengan integrasi Firebase dan ekosistem aplikasi merchant. Marketplace ini menggunakan model Facebook Marketplace dimana pembayaran dan pengiriman dilakukan secara privat melalui WhatsApp.
 
 ## 1. Fondasi Frontend
 - [x] Struktur halaman dasar (landing, katalog, toko, produk, auth, profil, pesanan, notifikasi, dukungan).
@@ -17,15 +17,17 @@ Dokumen ini merangkum prioritas implementasi untuk membawa website marketplace K
 - [ ] Halaman toko (`/stores/{slug}`) menampilkan katalog merchant.
 - [ ] Foto produk & toko melalui Firebase Storage + CDN caching.
 
-## 4. Keranjang, Checkout, Pembayaran
-- [ ] Persistensi keranjang (localStorage untuk guest, Firestore untuk login).
-- [ ] Integrasi `XenditService` untuk QRIS/VA dengan callback status.
-- [ ] Penulisan transaksi ke `/transactions` (flag `type: "online"`).
+## 4. Keranjang & Checkout (WhatsApp-based)
+- [x] Persistensi keranjang (localStorage untuk guest, Firestore untuk login).
+- [x] Checkout mengirim pesan WhatsApp ke merchant dengan template detail pesanan.
+- [x] Penulisan pesanan ke `/marketplaceOrders/{userId}/{orderId}`.
+- [x] Sistem konfirmasi dua arah (user dan merchant) untuk menandai pesanan selesai.
 
 ## 5. Pelacakan Pesanan & Notifikasi
-- [ ] Status pesanan tersinkron dari merchant POS → `/transactions/{userId}`.
+- [x] Status pesanan tersinkron dari Firebase → `/marketplaceOrders/{userId}`.
 - [ ] Feed notifikasi dari `/notifications` (promo & update pesanan).
-- [ ] Integrasi WhatsApp optional sebagai fallback konfirmasi.
+- [x] WhatsApp integration untuk komunikasi langsung dengan merchant.
+- [x] UI konfirmasi dua arah untuk menandai item telah diterima.
 
 ## 6. Ulasan & Dukungan
 - [ ] Form ulasan produk/toko ke `/reviews/{productId}/{reviewId}`.

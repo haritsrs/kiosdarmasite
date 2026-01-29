@@ -108,17 +108,11 @@
           "type": {
             ".validate": "newData.isString() && (newData.val() == 'online' || newData.val() == 'offline')"
           },
-          "paymentType": {
-            ".validate": "!newData.exists() || (newData.isString() && (newData.val() == 'qris' || newData.val() == 'va'))"
-          },
-          "paymentId": {
-            ".validate": "!newData.exists() || newData.isString()"
-          },
           "amount": {
             ".validate": "newData.isNumber() && newData.val() >= 0"
           },
           "status": {
-            ".validate": "newData.isString() && (newData.val() == 'pending' || newData.val() == 'paid' || newData.val() == 'processing' || newData.val() == 'shipped' || newData.val() == 'completed' || newData.val() == 'cancelled')"
+            ".validate": "newData.isString() && (newData.val() == 'pending' || newData.val() == 'processing' || newData.val() == 'shipped' || newData.val() == 'completed' || newData.val() == 'cancelled')"
           },
           "userId": {
             ".validate": "!newData.exists() || newData.isString()"
@@ -131,15 +125,6 @@
           },
           "items": {
             ".validate": "!newData.exists() || newData.hasChildren()"
-          },
-          "qrString": {
-            ".validate": "!newData.exists() || newData.isString()"
-          },
-          "accountNumber": {
-            ".validate": "!newData.exists() || newData.isString()"
-          },
-          "bankCode": {
-            ".validate": "!newData.exists() || newData.isString()"
           },
           "createdAt": {
             ".validate": "newData.isNumber() || newData.isString()"
@@ -158,17 +143,11 @@
         "type": {
           ".validate": "!newData.exists() || (newData.isString() && (newData.val() == 'online' || newData.val() == 'offline'))"
         },
-        "paymentType": {
-          ".validate": "!newData.exists() || (newData.isString() && (newData.val() == 'qris' || newData.val() == 'va'))"
-        },
-        "paymentId": {
-          ".validate": "!newData.exists() || newData.isString()"
-        },
         "amount": {
           ".validate": "!newData.exists() || (newData.isNumber() && newData.val() >= 0)"
         },
         "status": {
-          ".validate": "!newData.exists() || (newData.isString() && (newData.val() == 'pending' || newData.val() == 'paid' || newData.val() == 'processing' || newData.val() == 'shipped' || newData.val() == 'completed' || newData.val() == 'cancelled'))"
+          ".validate": "!newData.exists() || (newData.isString() && (newData.val() == 'pending' || newData.val() == 'processing' || newData.val() == 'shipped' || newData.val() == 'completed' || newData.val() == 'cancelled'))"
         },
         "userId": {
           ".validate": "!newData.exists() || newData.isString()"
@@ -181,15 +160,6 @@
         },
         "items": {
           ".validate": "!newData.exists() || newData.hasChildren()"
-        },
-        "qrString": {
-          ".validate": "!newData.exists() || newData.isString()"
-        },
-        "accountNumber": {
-          ".validate": "!newData.exists() || newData.isString()"
-        },
-        "bankCode": {
-          ".validate": "!newData.exists() || newData.isString()"
         },
         "createdAt": {
           ".validate": "!newData.exists() || (newData.isNumber() || newData.isString())"
@@ -457,9 +427,6 @@
             "discount": {
               ".validate": "!newData.exists() || (newData.isNumber() && newData.val() >= 0)"
             },
-            "paymentMethod": {
-              ".validate": "newData.isString() && newData.val().length <= 50"
-            },
             "cashAmount": {
               ".validate": "!newData.exists() || (newData.isNumber() && newData.val() >= 0)"
             },
@@ -655,7 +622,109 @@
           ".validate": false
         }
       }
+    },
+    
+    // ========================================================================
+    // MARKETPLACE (POS Integration)
+    // ========================================================================
+    // Marketplace orders: created by customers, confirmed by stores
+    "marketplace": {
+      "orders": {
+        ".read": "auth != null",
+        ".write": true,
+        ".indexOn": ["storeId", "userId", "createdAt", "status"],
+        "$orderId": {
+          ".read": true,
+          ".write": "!data.exists() || auth != null",
+          ".validate": "newData.hasChildren(['storeId', 'userId', 'items', 'subtotal', 'status', 'createdAt', 'expiresAt'])",
+          "storeId": {
+            ".validate": "newData.isString() && newData.val().length > 0"
+          },
+          "userId": {
+            ".validate": "newData.isString() && newData.val().length > 0"
+          },
+          "items": {
+            ".validate": "newData.isArray() && newData.numChildren() > 0",
+            "$itemIndex": {
+              "productId": {
+                ".validate": "newData.isString() && newData.val().length > 0"
+              },
+              "productName": {
+                ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 120"
+              },
+              "quantity": {
+                ".validate": "newData.isNumber() && newData.val() > 0"
+              },
+              "unitPrice": {
+                ".validate": "newData.isNumber() && newData.val() >= 0"
+              },
+              "subtotal": {
+                ".validate": "newData.isNumber() && newData.val() >= 0"
+              },
+              "$other": {
+                ".validate": false
+              }
+            }
+          },
+          "subtotal": {
+            ".validate": "newData.isNumber() && newData.val() > 0"
+          },
+          "status": {
+            ".validate": "newData.isString() && (newData.val() == 'pending' || newData.val() == 'confirmed' || newData.val() == 'completed' || newData.val() == 'cancelled' || newData.val() == 'expired')"
+          },
+          "createdAt": {
+            ".validate": "newData.isString()"
+          },
+          "expiresAt": {
+            ".validate": "newData.isString()"
+          },
+          "updatedAt": {
+            ".validate": "!newData.exists() || newData.isString()"
+          },
+          "whatsappSentAt": {
+            ".validate": "!newData.exists() || newData.isString()"
+          },
+          "storeConfirmedAt": {
+            ".validate": "!newData.exists() || newData.isString()"
+          },
+          "userConfirmedAt": {
+            ".validate": "!newData.exists() || newData.isString()"
+          },
+          "notes": {
+            ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 500)"
+          },
+          "cancelReason": {
+            ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 500)"
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      },
+      
+      "storeStats": {
+        ".read": true,
+        ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'merchant' || root.child('users').child(auth.uid).child('role').val() == 'admin')",
+        "$storeId": {
+          ".read": true,
+          ".write": "auth != null && auth.uid == $storeId",
+          "totalOrders": {
+            ".validate": "newData.isNumber() && newData.val() >= 0"
+          },
+          "completedOrders": {
+            ".validate": "newData.isNumber() && newData.val() >= 0"
+          },
+          "averageRating": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 5"
+          },
+          "lastOrderAt": {
+            ".validate": "!newData.exists() || newData.isString()"
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      }
     }
-  }
-}
+
 

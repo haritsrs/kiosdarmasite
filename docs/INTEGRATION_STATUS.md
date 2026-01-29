@@ -3,9 +3,8 @@
 ## ✅ Completed Integrations
 
 ### 1. Environment Configuration
-- ✅ Updated `src/env.js` to validate Firebase and Xendit environment variables
+- ✅ Updated `src/env.js` to validate Firebase environment variables
 - ✅ Client-side Firebase config (NEXT_PUBLIC_FIREBASE_*)
-- ✅ Server-side Xendit secret key (XENDIT_SECRET_KEY)
 - ✅ Optional Firebase Admin SDK credentials
 
 ### 2. Firebase Authentication
@@ -37,15 +36,11 @@
 - ✅ Graceful fallback to placeholder data if Firebase unavailable
 - ✅ Integrated with products, merchants, and promos services
 
-### 5. Xendit Payment Integration
-- ✅ Xendit service (`src/services/xendit.ts`)
-  - `createQRISPayment()` - Generate QRIS payment
-  - `createVAPayment()` - Generate Virtual Account
-  - `getPaymentStatus()` - Check payment status
-
-- ✅ Payment API routes
-  - `/api/payments/create` - Create payment intent
-  - `/api/payments/xendit/callback` - Handle Xendit webhooks
+### 5. Order Management
+- ✅ Order creation via WhatsApp checkout flow
+- ✅ Two-way confirmation system (user and merchant)
+- ✅ Order status tracking (pending, completed, cancelled)
+- ✅ WhatsApp message template for order details
 
 ### 6. Firebase Client Setup
 - ✅ Firebase app initialization
@@ -65,15 +60,16 @@
    - Display merchant products using `getProductsByMerchant()`
 
 3. **Checkout Flow**
-   - Create checkout page that calls `/api/payments/create`
-   - Display QRIS code or VA number
-   - Poll payment status until paid
-   - Update cart to use localStorage or Firestore
+   - ✅ Checkout page creates order and sends WhatsApp message
+   - ✅ WhatsApp message includes order details template
+   - ✅ Order stored in Firebase Realtime Database
+   - ✅ Cart management with localStorage
 
 4. **Order Tracking**
-   - Create `/orders` page that reads from `/transactions/{userId}`
-   - Display order status updates
-   - Real-time status sync from merchant app
+   - ✅ `/orders` page reads from `/marketplaceOrders/{userId}`
+   - ✅ Display order status updates
+   - ✅ Two-way confirmation UI (user and merchant)
+   - ✅ Real-time status sync from Firebase
 
 5. **Cart Management**
    - Implement cart with localStorage (guest) or Firestore (logged in)
@@ -102,10 +98,10 @@ NEXT_PUBLIC_FIREBASE_APP_ID=
 
 ### Server-side
 ```
-XENDIT_SECRET_KEY=
 FIREBASE_ADMIN_PROJECT_ID= (optional)
 FIREBASE_ADMIN_CLIENT_EMAIL= (optional)
 FIREBASE_ADMIN_PRIVATE_KEY= (optional)
+RESEND_API_KEY= (optional, for support emails)
 ```
 
 ## 🔗 Firebase Database Structure
@@ -131,15 +127,24 @@ FIREBASE_ADMIN_PRIVATE_KEY= (optional)
   /rating
   /soldCount
 
-/transactions/{transactionId}/
-  /type (online | offline)
-  /paymentType (qris | va)
-  /paymentId
-  /amount
-  /status (pending | paid | processing | shipped | completed)
-  /customer
+/marketplaceOrders/{userId}/{orderId}/
+  /id
+  /userId
   /items
+  /subtotal
+  /total
+  /status (pending | completed | cancelled)
+  /userConfirmed (boolean)
+  /merchantConfirmed (boolean)
+  /whatsappMessage
+  /merchantId
+  /merchantName
+  /merchantPhone
   /createdAt
+  /updatedAt
+  /completedAt (optional)
+  /cancelledAt (optional)
+  /cancelledBy (optional)
 
 /notifications/{notificationId}/
   /type (promo | banner | order)
@@ -158,8 +163,9 @@ FIREBASE_ADMIN_PRIVATE_KEY= (optional)
 - [ ] Test product fetching from Firebase
 - [ ] Test merchant fetching
 - [ ] Test promo fetching
-- [ ] Test Xendit QRIS payment creation
-- [ ] Test Xendit VA payment creation
-- [ ] Test payment callback webhook
-- [ ] Verify transaction storage in Firebase
+- [ ] Test order creation via checkout
+- [ ] Test WhatsApp message generation
+- [ ] Test two-way order confirmation
+- [ ] Verify order storage in Firebase
+- [ ] Test order status updates
 

@@ -36,31 +36,49 @@ export default function LoginPage() {
       </header>
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+        <div
+          role="alert"
+          aria-live="polite"
+          className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+        >
+          {error}
+        </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
-        <label className="flex flex-col gap-2 text-sm font-medium text-neutral-700">
-          Email
+      <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm" noValidate>
+        <div className="flex flex-col gap-2">
+          <label htmlFor="email" className="text-sm font-medium text-neutral-700">
+            Email
+          </label>
           <input
+            id="email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="nama@contoh.com"
             required
+            autoComplete="email"
+            aria-describedby={error ? "email-error" : undefined}
+            aria-invalid={error ? "true" : "false"}
             className="rounded-lg border border-neutral-300 px-3 py-2 text-neutral-800 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-200"
           />
-        </label>
-        <label className="flex flex-col gap-2 text-sm font-medium text-neutral-700">
-          Kata sandi
+        </div>
+        <div className="flex flex-col gap-2">
+          <label htmlFor="password" className="text-sm font-medium text-neutral-700">
+            Kata sandi
+          </label>
           <input
+            id="password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
+            autoComplete="current-password"
+            aria-describedby={error ? "password-error" : undefined}
+            aria-invalid={error ? "true" : "false"}
             className="rounded-lg border border-neutral-300 px-3 py-2 text-neutral-800 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-200"
           />
-        </label>
+        </div>
         <button
           type="submit"
           disabled={loading}
